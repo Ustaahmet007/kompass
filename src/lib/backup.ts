@@ -5,7 +5,7 @@ import { blobToDataUrl, dataUrlToBlob } from './images'
 const TABLES = ['subjects', 'periods', 'lessons', 'tasks', 'grades', 'exams', 'settings', 'notes', 'sessions', 'plans', 'chat', 'usage', 'images'] as const
 
 /** Never leaves the device: not exported, and kept when a backup is restored. */
-const PRIVATE_SETTINGS = ['apiKey']
+const PRIVATE_SETTINGS = ['apiKey', 'elevenKey']
 
 export async function exportData() {
   const data: Record<string, unknown[]> = {}

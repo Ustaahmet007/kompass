@@ -1,3 +1,4 @@
+import { elevenActive, elevenSpeak, stopEleven, unlockElevenAudio } from './eleven'
 /** Voice output (speechSynthesis) and input (Web Speech recognition, where Safari allows it). */
 
 export const canSpeak = typeof window !== 'undefined' && 'speechSynthesis' in window
@@ -29,6 +30,7 @@ export function cleanForSpeech(text: string) {
  * (e.g. when the send or mic button is pressed) so later replies can be read out.
  */
 export function unlockSpeech() {
+  unlockElevenAudio()
   if (!canSpeak) return
   const u = new SpeechSynthesisUtterance('')
   u.volume = 0
@@ -57,7 +59,32 @@ export function listVoices() {
     .sort((a, b) => a.lang.localeCompare(b.lang) || a.name.localeCompare(b.name))
 }
 
+/** Last cloud-voice problem, shown in Einstellungen (falls back to the device voice meanwhile). */
+export let lastVoiceError = ''
+
 export function speak(text: string, onEnd?: () => void, override?: Partial<VoicePrefs>) {
+  if (elevenActive() && !override) {
+    stopSystemVoice()
+    elevenSpeak(cleanForSpeech(text))
+      .then(() => {
+        lastVoiceError = ''
+        onEnd?.()
+      })
+      .catch((e) => {
+        lastVoiceError = e instanceof Error ? e.message : String(e)
+        speakSystem(text, onEnd)
+      })
+    return
+  }
+  speakSystem(text, onEnd, override)
+}
+
+function stopSystemVoice() {
+  if (canSpeak) window.speechSynthesis.cancel()
+}
+
+/** The device's own voices (iPad, Mac, Windows). */
+export function speakSystem(text: string, onEnd?: () => void, override?: Partial<VoicePrefs>) {
   if (!canSpeak) return onEnd?.()
   window.speechSynthesis.cancel()
   const p = { ...prefs, ...override }
@@ -79,6 +106,7 @@ export function speak(text: string, onEnd?: () => void, override?: Partial<Voice
 }
 
 export function stopSpeaking() {
+  stopEleven()
   if (canSpeak) window.speechSynthesis.cancel()
 }
 

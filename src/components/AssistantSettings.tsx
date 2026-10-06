@@ -4,7 +4,8 @@ import { setSetting } from '../db'
 import { PERSONAS, type CustomPersona } from '../lib/personas'
 import { DEFAULT_VOICE, canSpeak, listVoices, speak, type VoicePrefs } from '../lib/voice'
 import { useSetting } from '../lib/hooks'
-import { Button, Field, Input, Panel, Select, Textarea, cx } from './ui'
+import { Button, Field, Input, Panel, Segmented, Select, Textarea, cx } from './ui'
+import { ElevenSettings } from './ElevenSettings'
 
 function useVoices() {
   const [voices, setVoices] = useState(() => listVoices())
@@ -26,6 +27,7 @@ export function AssistantSettings() {
   const custom = useSetting<CustomPersona | null>('customPersona', null)
   const voice = { ...DEFAULT_VOICE, ...useSetting<VoicePrefs | null>('voice', null) }
   const voices = useVoices()
+  const engine = useSetting<'system' | 'eleven'>('voiceEngine', 'system')
   const [draft, setDraft] = useState<CustomPersona>(custom ?? { name: '', prompt: '' })
   useEffect(() => {
     if (custom) setDraft(custom)
@@ -67,6 +69,12 @@ export function AssistantSettings() {
             </div>
           )}
         </div>
+
+        <Field label="Stimme kommt von">
+          <Segmented className="w-full" value={engine} onChange={(v) => setSetting('voiceEngine', v)} options={[{ value: 'system', label: 'Gerät' }, { value: 'eleven', label: 'ElevenLabs (Cloud)' }]} />
+        </Field>
+        {engine === 'eleven' && <ElevenSettings />}
+        {engine === 'eleven' && <p className="text-sm text-ink-3">Falls ElevenLabs mal nicht geht (offline, Kontingent leer), liest die Gerätestimme unten vor.</p>}
 
         {canSpeak ? (
           <div className="space-y-4">

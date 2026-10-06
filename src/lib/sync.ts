@@ -22,7 +22,7 @@ export const supabase: SupabaseClient | null = syncConfigured ? createClient(URL
 export const SYNCED = ['subjects', 'periods', 'lessons', 'tasks', 'grades', 'exams', 'settings', 'notes', 'sessions', 'plans', 'chat', 'usage', 'images'] as const
 type SyncedTable = (typeof SYNCED)[number]
 /** Device-specific settings that stay on each device. */
-const LOCAL_SETTINGS = new Set(['apiKey', 'voice', 'timer', 'lastExport', 'seeded'])
+const LOCAL_SETTINGS = new Set(['apiKey', 'voice', 'timer', 'lastExport', 'seeded', 'elevenKey', 'elevenVoice', 'elevenModel', 'voiceEngine'])
 const STRING_KEYS = new Set<SyncedTable>(['settings', 'usage'])
 
 // ---- unique ids -------------------------------------------------------------------------

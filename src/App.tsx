@@ -7,6 +7,7 @@ import { useSetting } from './lib/hooks'
 import { applyTheme, DEFAULT_THEME, type ThemeSettings } from './lib/theme'
 import { FramedImage } from './components/Picture'
 import { setVoicePrefs, type VoicePrefs } from './lib/voice'
+import { setElevenConfig, type ElevenModel } from './lib/eleven'
 import { useSyncState } from './components/SyncSettings'
 import Today from './pages/Today'
 import Timetable from './pages/Timetable'
@@ -85,6 +86,11 @@ function Badge({ n }: { n: number }) {
 function Shell() {
   const voicePrefs = useSetting<VoicePrefs | null>('voice', null)
   useEffect(() => setVoicePrefs(voicePrefs), [voicePrefs])
+  const engine = useSetting<'system' | 'eleven'>('voiceEngine', 'system')
+  const elevenKey = useSetting<string>('elevenKey', '')
+  const elevenVoice = useSetting<string>('elevenVoice', '')
+  const elevenModel = useSetting<ElevenModel>('elevenModel', 'eleven_flash_v2_5')
+  useEffect(() => setElevenConfig(engine === 'eleven' ? { key: elevenKey, voiceId: elevenVoice, model: elevenModel } : null), [engine, elevenKey, elevenVoice, elevenModel])
   const design = useDesign()
   const due = useDueCount()
   // Sidebar when there is room for it: iPad landscape, or any wide window. Split View and portrait get the tab bar.
