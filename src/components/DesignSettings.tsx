@@ -34,7 +34,7 @@ export function ImagePicker({ value, onChange, label, kind, overlay }: { value: 
         <div className="relative overflow-hidden rounded-xl bg-sunken" style={{ aspectRatio: String(aspect) }}>
           <FramedImage id={value} alt={label} />
           {overlay && <div className="pointer-events-none absolute inset-0">{overlay}</div>}
-          <div className="absolute right-2 bottom-2 flex flex-wrap justify-end gap-2">
+          <div className="absolute top-2 right-2 flex flex-wrap justify-end gap-2">
             <Button className="bg-surface" onClick={() => setFramingOpen(true)}><Crop size={17} /> Ausschnitt</Button>
             <Button className="bg-surface" onClick={() => ref.current?.click()} disabled={busy}><ImagePlus size={17} /> Ändern</Button>
             <Button variant="danger" onClick={async () => { await deleteImage(value); onChange(null) }} aria-label={`${label} entfernen`}><Trash2 size={17} /></Button>

@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState, type ReactNode, type ButtonHTMLAttributes, type InputHTMLAttributes, type SelectHTMLAttributes, type TextareaHTMLAttributes } from 'react'
+import { createPortal } from 'react-dom'
 import { X } from 'lucide-react'
 import type { Subject } from '../db'
 import { gradeColor } from '../lib/grades'
@@ -175,10 +176,12 @@ export function Sheet({ open, onClose, title, children, footer }: { open: boolea
     }
   }, [open, onClose])
   if (!open) return null
-  return (
+  // Rendered straight into <body>: a parent with a blur/transform (e.g. panels over a photo background)
+  // would otherwise become the reference for `fixed` and push the sheet off-screen on iPad.
+  return createPortal(
     <div className="fixed inset-0 z-50 flex items-end justify-center sm:items-center sm:p-6" role="dialog" aria-modal="true" aria-label={title}>
       <div className="fade-in absolute inset-0 bg-black/40" onClick={onClose} />
-      <div ref={ref} className="sheet-in safe-bottom relative flex max-h-[92dvh] w-full flex-col rounded-t-2xl bg-surface sm:max-w-lg sm:rounded-2xl">
+      <div ref={ref} className="panel sheet-in safe-bottom relative flex max-h-[92dvh] w-full flex-col rounded-t-2xl bg-surface shadow-2xl sm:max-w-lg sm:rounded-2xl">
         <div className="flex items-center justify-between gap-2 border-b border-line py-2 pr-2 pl-5">
           <h2 className="display text-xl">{title}</h2>
           <IconButton label="Schließen" onClick={onClose}>
@@ -189,6 +192,8 @@ export function Sheet({ open, onClose, title, children, footer }: { open: boolea
         {footer && <div className="flex flex-wrap justify-end gap-2 border-t border-line px-5 py-3">{footer}</div>}
       </div>
     </div>
+    ,
+    document.body,
   )
 }
 

@@ -105,8 +105,8 @@ function FramingEditor({ id, kind, onClose, overlay, title }: { id: number; kind
       <p className="mb-3 flex items-center gap-2 text-sm text-ink-2"><Move size={16} /> Bild ziehen, um den Ausschnitt zu verschieben.</p>
       <div
         ref={frame}
-        className={cx('relative w-full touch-none overflow-hidden rounded-2xl bg-sunken select-none', dragging ? 'cursor-grabbing' : 'cursor-grab', kind === 'thumb' && 'mx-auto max-w-48')}
-        style={{ aspectRatio: String(aspect), maxHeight: '55dvh' }}
+        className={cx('relative mx-auto touch-none overflow-hidden rounded-2xl bg-sunken select-none', dragging ? 'cursor-grabbing' : 'cursor-grab', kind === 'thumb' && 'mx-auto max-w-48')}
+        style={{ aspectRatio: String(aspect), width: `min(100%, calc(52dvh * ${aspect}))` }}
         onPointerDown={onDown}
         onPointerMove={onMove}
         onPointerUp={onUp}
