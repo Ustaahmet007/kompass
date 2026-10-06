@@ -3,7 +3,7 @@ import { useLiveQuery } from 'dexie-react-hooks'
 import { Mic, MicOff, Send, Sparkles, Trash2, Undo2, Volume2, VolumeX, Sunrise } from 'lucide-react'
 import { db, getSetting, setSetting, type ChatMessage } from '../db'
 import { todayISO } from '../lib/date'
-import { resolvePersona, type CustomPersona } from '../lib/personas'
+import { PERSONAS, resolvePersona, type CustomPersona } from '../lib/personas'
 import { askAssistant, getBriefing, undoAction } from '../lib/assistant'
 import { canListen, canSpeak, listen, speak, stopSpeaking, unlockSpeech } from '../lib/voice'
 import { useSetting } from '../lib/hooks'
@@ -16,7 +16,13 @@ export default function Assistant() {
   const ki = useKi()
   const messages = useLiveQuery(() => db.chat.orderBy('ts').toArray(), [], [] as ChatMessage[])
   const voiceOut = useSetting('voiceOut', true)
-  const persona = resolvePersona(useSetting<string>('persona', 'friday'), useSetting<CustomPersona | null>('customPersona', null))
+  const personaId = useSetting<string>('persona', 'friday')
+  const customPersona = useSetting<CustomPersona | null>('customPersona', null)
+  const persona = resolvePersona(personaId, customPersona)
+  const personaOptions = [
+    ...Object.entries(PERSONAS).map(([id, p]) => ({ id, name: p.name })),
+    ...(customPersona?.prompt ? [{ id: 'eigene', name: customPersona.name || 'Eigene Figur' }] : []),
+  ]
   const [input, setInput] = useState('')
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState('')
@@ -131,6 +137,21 @@ export default function Assistant() {
           </div>
         }
       />
+
+      <div className="-mt-3 mb-5 flex gap-2 overflow-x-auto pb-1" role="radiogroup" aria-label="Charakter">
+        {personaOptions.map((o) => (
+          <button
+            key={o.id}
+            type="button"
+            role="radio"
+            aria-checked={personaId === o.id}
+            onClick={() => { stopSpeaking(); setBriefing(null); setSetting('persona', o.id) }}
+            className={cx('min-h-10 shrink-0 rounded-full border px-4 text-sm font-medium whitespace-nowrap', personaId === o.id ? 'border-brass bg-brass-soft text-brass' : 'border-line bg-surface text-ink-2 hover:text-ink')}
+          >
+            {o.name}
+          </button>
+        ))}
+      </div>
 
       <div className="flex-1 space-y-3">
         {briefing && (
