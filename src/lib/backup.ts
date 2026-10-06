@@ -1,11 +1,15 @@
 import { db } from '../db'
 import { todayISO } from './date'
 
-const TABLES = ['subjects', 'periods', 'lessons', 'tasks', 'grades', 'exams', 'settings'] as const
+const TABLES = ['subjects', 'periods', 'lessons', 'tasks', 'grades', 'exams', 'settings', 'notes', 'sessions', 'plans', 'chat', 'usage'] as const
+
+/** Never leaves the device: not exported, and kept when a backup is restored. */
+const PRIVATE_SETTINGS = ['apiKey']
 
 export async function exportData() {
   const data: Record<string, unknown[]> = {}
   for (const t of TABLES) data[t] = await db.table(t).toArray()
+  data.settings = (data.settings as { key: string }[]).filter((r) => !PRIVATE_SETTINGS.includes(r.key))
   const payload = { app: 'kompass', version: 1, exportedAt: new Date().toISOString(), data }
   const blob = new Blob([JSON.stringify(payload, null, 2)], { type: 'application/json' })
   const fileName = `kompass-backup-${todayISO()}.json`
@@ -40,11 +44,14 @@ export async function importData(file: File) {
   }
   if (parsed.app !== 'kompass' || !parsed.data) throw new Error('Das ist keine Kompass-Sicherung.')
   const data = parsed.data
+  const keep = await db.settings.bulkGet(PRIVATE_SETTINGS)
   await db.transaction('rw', TABLES.map((t) => db.table(t)), async () => {
     for (const t of TABLES) {
       await db.table(t).clear()
-      const rows = data[t]
+      let rows = data[t]
+      if (t === 'settings' && Array.isArray(rows)) rows = (rows as { key: string }[]).filter((r) => !PRIVATE_SETTINGS.includes(r.key))
       if (Array.isArray(rows) && rows.length) await db.table(t).bulkAdd(rows)
     }
+    for (const row of keep) if (row) await db.settings.put(row)
   })
 }

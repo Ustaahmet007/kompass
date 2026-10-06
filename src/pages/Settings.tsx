@@ -7,6 +7,7 @@ import { exportData, importData } from '../lib/backup'
 import { deleteDemo, hasDemo, seedDemo } from '../lib/seed'
 import { usePeriods, useSetting, useToday } from '../lib/hooks'
 import { Button, IconButton, Input, PageHeader, Panel, Segmented, useConfirm } from '../components/ui'
+import { KiSettings } from '../components/KiSettings'
 
 export default function SettingsPage() {
   const today = useToday()
@@ -61,6 +62,7 @@ export default function SettingsPage() {
       <PageHeader title="Einstellungen" />
       <div className="grid gap-5 lg:grid-cols-2">
         <div className="space-y-5">
+          <KiSettings />
           <Panel title="Darstellung">
             <div className="px-4 pt-1 pb-4">
               <Segmented className="w-full" value={theme} onChange={(v) => setSetting('theme', v)} options={[{ value: 'system', label: 'Wie iPad' }, { value: 'light', label: 'Hell' }, { value: 'dark', label: 'Dunkel' }]} />
@@ -136,7 +138,7 @@ export default function SettingsPage() {
           </div>
         </Panel>
       </div>
-      <p className="mt-8 text-sm text-ink-3">Kompass · Phase 1</p>
+      <p className="mt-8 text-sm text-ink-3">Kompass · Phase 2</p>
       {confirm.element}
     </div>
   )

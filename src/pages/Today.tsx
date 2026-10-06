@@ -2,7 +2,7 @@ import { useState } from 'react'
 import { Link } from 'react-router-dom'
 import { useLiveQuery } from 'dexie-react-hooks'
 import { Plus } from 'lucide-react'
-import { db, type Lesson, type Task } from '../db'
+import { db, type Lesson, type StudyPlan, type Task } from '../db'
 import { addDays, daysBetween, formatDate, formatLong, minutesOf, mondayOf, weekKindFor, weekdayIndex, DAY_NAMES } from '../lib/date'
 import { lessonSpan, lessonsForDate, useNow, usePeriods, useSetting, useSubjects, useToday } from '../lib/hooks'
 import { TaskRow, TaskSheet } from '../components/tasks'
@@ -18,6 +18,7 @@ export default function Today() {
   const lessons = useLiveQuery(() => db.lessons.toArray(), [], [] as Lesson[])
   const tasks = useLiveQuery(() => db.tasks.toArray(), [], [] as Task[])
   const exams = useLiveQuery(() => db.exams.where('date').aboveOrEqual(today).sortBy('date'), [today], [])
+  const plans = useLiveQuery(() => db.plans.where('deadline').aboveOrEqual(today).toArray(), [today], [] as StudyPlan[])
   const [edit, setEdit] = useState<Task | null | undefined>(undefined)
   const confirm = useConfirm()
 
@@ -81,12 +82,12 @@ export default function Today() {
           {nextExam && nextExamSubject ? (
             <Link to="/pruefungen" className="block rounded-xl border-2 border-brass bg-brass-soft px-5 py-4 transition-transform active:scale-[0.99]">
               <p className="text-sm font-semibold text-brass">Nächste {nextExam.kind}</p>
-              <div className="mt-1 flex flex-wrap items-end justify-between gap-x-4 gap-y-2">
+              <div className="mt-1 flex items-end justify-between gap-4">
                 <div className="min-w-0">
                   <p className="display truncate text-2xl">{nextExamSubject.name}</p>
                   <p className="mt-1 truncate text-ink-2">{nextExam.topic || 'Kein Stoff eingetragen'}</p>
                 </div>
-                <div className="shrink-0 sm:text-right">
+                <div className="shrink-0 text-right">
                   <p className="display text-4xl tabular sm:text-5xl">{examDays}</p>
                   <p className="text-sm text-ink-2">{examDays === 1 ? 'Tag' : 'Tage'} · {formatDate(nextExam.date, { weekday: 'short', day: 'numeric', month: 'short' })}</p>
                 </div>
@@ -95,6 +96,31 @@ export default function Today() {
           ) : (
             <Panel title="Nächste Prüfung">
               <Empty action={<Link to="/pruefungen"><Button>Prüfung eintragen</Button></Link>}>Keine Prüfung geplant.</Empty>
+            </Panel>
+          )}
+
+          {plans.some((p) => p.items.some((i) => i.date === today)) && (
+            <Panel title="Heute lernen" action={<Link to="/lernziele" className="min-h-11 content-center px-1 text-sm font-medium text-brass">Lernziele</Link>}>
+              <ul className="divide-y divide-line pb-1">
+                {plans.flatMap((p) =>
+                  p.items.map((it, idx) => ({ p, it, idx })).filter((x) => x.it.date === today),
+                ).map(({ p, it, idx }) => (
+                  <li key={`${p.id}-${idx}`} className="flex items-center gap-3 px-4 py-2.5">
+                    <button
+                      type="button"
+                      onClick={() => db.plans.update(p.id!, { items: p.items.map((x, j) => (j === idx ? { ...x, done: !x.done } : x)) })}
+                      aria-label={it.done ? 'Als offen markieren' : 'Als erledigt markieren'}
+                      className="-m-2 flex size-11 shrink-0 items-center justify-center"
+                    >
+                      <span className={cx('flex size-6 items-center justify-center rounded-md border-2', it.done ? 'border-ok bg-ok text-white' : 'border-ink-3')}>{it.done && '✓'}</span>
+                    </button>
+                    <Link to={`/lernziele/${p.id}`} className="min-w-0 flex-1">
+                      <span className={cx('block truncate font-medium', it.done && 'text-ink-3 line-through')}>{it.topic}</span>
+                      <span className="text-sm text-ink-2">{it.minutes} min · {p.title}</span>
+                    </Link>
+                  </li>
+                ))}
+              </ul>
             </Panel>
           )}
 

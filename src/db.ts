@@ -79,6 +79,66 @@ export interface Setting {
   value: unknown
 }
 
+export interface Note {
+  id?: number
+  subjectId?: number | null
+  title: string
+  body: string
+  createdAt: number
+  updatedAt: number
+}
+
+/** A finished Lerntimer focus block. */
+export interface StudySession {
+  id?: number
+  subjectId?: number | null
+  date: string // YYYY-MM-DD
+  minutes: number
+  endedAt: number
+}
+
+export interface PlanItem {
+  date: string // YYYY-MM-DD
+  minutes: number
+  topic: string
+  details?: string
+  kind: 'lernen' | 'wiederholen' | 'probe'
+  done: boolean
+}
+
+export interface StudyPlan {
+  id?: number
+  title: string
+  subjectId?: number | null
+  examId?: number | null
+  deadline: string // YYYY-MM-DD
+  minutesPerDay: number
+  availability: string
+  material: string
+  materialFileName?: string
+  tips?: string
+  items: PlanItem[]
+  createdAt: number
+  updatedAt: number
+}
+
+export interface ChatMessage {
+  id?: number
+  role: 'user' | 'assistant'
+  text: string
+  ts: number
+  /** Changes the assistant made in this turn, so they can be undone. */
+  actions?: { label: string; undo: { table: 'tasks' | 'exams' | 'grades'; id: number; op: 'delete' | 'restore'; before?: unknown } }[]
+}
+
+export interface Usage {
+  month: string // YYYY-MM
+  costUsd: number
+  calls: number
+  inputTokens: number
+  outputTokens: number
+}
+
 export const db = new Dexie('kompass') as Dexie & {
   subjects: EntityTable<Subject, 'id'>
   periods: EntityTable<Period, 'id'>
@@ -87,6 +147,11 @@ export const db = new Dexie('kompass') as Dexie & {
   grades: EntityTable<Grade, 'id'>
   exams: EntityTable<Exam, 'id'>
   settings: EntityTable<Setting, 'key'>
+  notes: EntityTable<Note, 'id'>
+  sessions: EntityTable<StudySession, 'id'>
+  plans: EntityTable<StudyPlan, 'id'>
+  chat: EntityTable<ChatMessage, 'id'>
+  usage: EntityTable<Usage, 'month'>
 }
 
 db.version(1).stores({
@@ -97,6 +162,14 @@ db.version(1).stores({
   grades: '++id, subjectId, date',
   exams: '++id, subjectId, date',
   settings: 'key',
+})
+
+db.version(2).stores({
+  notes: '++id, subjectId, updatedAt',
+  sessions: '++id, subjectId, date',
+  plans: '++id, subjectId, deadline',
+  chat: '++id, ts',
+  usage: 'month',
 })
 
 export const DEFAULT_CATEGORIES: Category[] = [

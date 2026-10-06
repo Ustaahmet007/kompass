@@ -1,6 +1,6 @@
 import { useEffect, useState, type ReactNode } from 'react'
 import { HashRouter, NavLink, Route, Routes, useLocation } from 'react-router-dom'
-import { BookOpen, CalendarDays, ClipboardList, Compass, GraduationCap, LayoutGrid, MoreHorizontal, Settings, Sun, Target } from 'lucide-react'
+import { BookOpen, CalendarDays, ClipboardList, Compass, Flag, GraduationCap, LayoutGrid, MoreHorizontal, NotebookPen, Settings, Sparkles, Sun, Target, Timer as TimerIcon } from 'lucide-react'
 import { useDueCount } from './components/tasks'
 import { Sheet, cx } from './components/ui'
 import { useSetting } from './lib/hooks'
@@ -13,6 +13,10 @@ import CalendarPage from './pages/Calendar'
 import Subjects from './pages/Subjects'
 import SubjectDetail from './pages/SubjectDetail'
 import SettingsPage from './pages/Settings'
+import Notes from './pages/Notes'
+import TimerPage from './pages/Timer'
+import Plans from './pages/Plans'
+import Assistant from './pages/Assistant'
 
 type NavItem = { to: string; label: string; icon: ReactNode; badge?: boolean }
 const NAV: NavItem[] = [
@@ -20,6 +24,10 @@ const NAV: NavItem[] = [
   { to: '/stundenplan', label: 'Stundenplan', icon: <LayoutGrid size={22} /> },
   { to: '/aufgaben', label: 'Aufgaben', icon: <ClipboardList size={22} />, badge: true },
   { to: '/noten', label: 'Noten', icon: <GraduationCap size={22} /> },
+  { to: '/assistent', label: 'Assistent', icon: <Sparkles size={22} /> },
+  { to: '/lernziele', label: 'Lernziele', icon: <Flag size={22} /> },
+  { to: '/lerntimer', label: 'Lerntimer', icon: <TimerIcon size={22} /> },
+  { to: '/notizen', label: 'Notizen', icon: <NotebookPen size={22} /> },
   { to: '/pruefungen', label: 'Prüfungen', icon: <Target size={22} /> },
   { to: '/kalender', label: 'Kalender', icon: <CalendarDays size={22} /> },
   { to: '/faecher', label: 'Fächer', icon: <BookOpen size={22} /> },
@@ -73,6 +81,19 @@ function Shell() {
     else nav.clearAppBadge?.().catch(() => {})
   }, [due])
 
+
+  const onAssistant = loc.pathname.startsWith('/assistent')
+  const fab = !onAssistant && (
+    <NavLink
+      to="/assistent"
+      aria-label="Assistent öffnen"
+      className={cx('fixed right-5 z-30 flex size-14 items-center justify-center rounded-full bg-ink text-paper shadow-xl ring-4 ring-brass/30 transition-transform active:scale-95', wide ? 'bottom-6' : 'bottom-24')}
+      style={{ marginBottom: 'env(safe-area-inset-bottom)' }}
+    >
+      <Sparkles size={24} />
+    </NavLink>
+  )
+
   const routes = (
     <Routes>
       <Route path="/" element={<Today />} />
@@ -84,6 +105,12 @@ function Shell() {
       <Route path="/faecher" element={<Subjects />} />
       <Route path="/fach/:id" element={<SubjectDetail />} />
       <Route path="/einstellungen" element={<SettingsPage />} />
+      <Route path="/notizen" element={<Notes />} />
+      <Route path="/notizen/:id" element={<Notes />} />
+      <Route path="/lerntimer" element={<TimerPage />} />
+      <Route path="/lernziele" element={<Plans />} />
+      <Route path="/lernziele/:id" element={<Plans />} />
+      <Route path="/assistent" element={<Assistant />} />
       <Route path="*" element={<Today />} />
     </Routes>
   )
@@ -117,6 +144,7 @@ function Shell() {
         <main className="safe-top min-w-0 flex-1">
           <div className="mx-auto max-w-6xl px-6 py-8 lg:px-10">{routes}</div>
         </main>
+        {fab}
       </div>
     )
   }
@@ -125,6 +153,7 @@ function Shell() {
   return (
     <div className="min-h-dvh">
       <main className="safe-top"><div className="px-4 pt-6 pb-28 sm:px-6">{routes}</div></main>
+      {fab}
       <nav className="safe-bottom fixed inset-x-0 bottom-0 z-40 border-t border-line bg-surface/95 backdrop-blur">
         <div className="mx-auto grid max-w-xl grid-cols-5">
           {TAB_ITEMS.map((n) => (
