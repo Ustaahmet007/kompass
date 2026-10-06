@@ -1,20 +1,21 @@
 import { db, getSetting, setSetting, type ChatMessage, type ExamKind, type Priority, type Subject } from '../db'
 import { callClaude, textOf, type ApiMessage, type ContentBlock, type Tool } from './claude'
 import { buildSchoolContext } from './context'
+import { resolvePersona, type CustomPersona, type PersonaDef } from './personas'
 import { todayISO } from './date'
 
-export type Persona = 'friday' | 'sachlich'
 type Action = NonNullable<ChatMessage['actions']>[number]
 
-const PERSONA: Record<Persona, string> = {
-  friday:
-    'Du bist Friday, der Assistent in der Schul-App Kompass. Jüngere, frechere Nachfolgerin von JARVIS: warm, schlagfertig, locker kompetent, neckst ein bisschen. ' +
-    'Du nennst den Nutzer "boss". Auf Englisch darf ein leichter irischer Einschlag durchklingen. Nie unterwürfig, nie kriecherisch.',
-  sachlich: 'Du bist der Assistent in der Schul-App Kompass. Freundlich, klar und sachlich.',
+async function currentPersona() {
+  const id = await getSetting<string>('persona', 'friday')
+  const custom = await getSetting<CustomPersona | null>('customPersona', null)
+  return resolvePersona(id, custom)
 }
 
-function systemPrompt(persona: Persona, context: string) {
-  return `${PERSONA[persona]}
+function systemPrompt(persona: PersonaDef, context: string) {
+  return `Du bist der Assistent in der Schul-App Kompass. Deine Rolle:
+${persona.prompt}
+Bleib in deiner Rolle, aber die Fakten aus den Daten müssen immer stimmen.
 
 Der Nutzer ist Schüler an einer österreichischen HTL (Klasse 3AHEL). Nutze österreichische Schulbegriffe (Schularbeit, Hausübung, Mitarbeit, Zeugnis).
 Antworte in der Sprache, in der der Nutzer schreibt (Deutsch oder Englisch, gemischt ist ok).
@@ -138,7 +139,7 @@ async function runTool(name: string, input: Record<string, unknown>, actions: Ac
 
 /** One assistant turn, including any tool calls. Saves both messages to the chat history. */
 export async function askAssistant(userText: string): Promise<ChatMessage> {
-  const persona = await getSetting<Persona>('persona', 'friday')
+  const persona = await currentPersona()
   const history = (await db.chat.orderBy('ts').reverse().limit(12).toArray()).reverse()
   await db.chat.add({ role: 'user', text: userText, ts: Date.now() })
 
@@ -185,9 +186,9 @@ export async function undoAction(messageId: number, index: number) {
 /** Spoken daily briefing. Cached per day so re-playing it costs nothing. */
 export async function getBriefing(force = false): Promise<string> {
   const today = todayISO()
-  const cached = await getSetting<{ date: string; text: string } | null>('briefing', null)
-  if (!force && cached?.date === today) return cached.text
-  const persona = await getSetting<Persona>('persona', 'friday')
+  const cached = await getSetting<{ date: string; text: string; persona?: string } | null>('briefing', null)
+  const persona = await currentPersona()
+  if (!force && cached?.date === today && cached.persona === persona.name) return cached.text
   const res = await callClaude({
     system: systemPrompt(persona, await buildSchoolContext()),
     messages: [
@@ -202,6 +203,6 @@ export async function getBriefing(force = false): Promise<string> {
     maxTokens: 400,
   })
   const text = textOf(res)
-  await setSetting('briefing', { date: today, text })
+  await setSetting('briefing', { date: today, text, persona: persona.name })
   return text
 }

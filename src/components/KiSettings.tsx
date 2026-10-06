@@ -10,7 +10,6 @@ export function KiSettings() {
   const key = useSetting<string>('apiKey', '')
   const model = useSetting<ModelId>('kiModel', DEFAULT_MODEL)
   const budget = useSetting('kiBudget', DEFAULT_BUDGET)
-  const persona = useSetting<'friday' | 'sachlich'>('persona', 'friday')
   const usage = useLiveQuery(() => db.usage.get(monthKey()), [])
   const [draft, setDraft] = useState('')
   const [msg, setMsg] = useState('')
@@ -55,9 +54,7 @@ export function KiSettings() {
           </Field>
           <p className="-mt-2 text-sm text-ink-3">{MODELS[model].label}: {MODELS[model].note}.</p>
 
-          <Field label="Assistent">
-            <Segmented className="w-full" value={persona} onChange={(v) => setSetting('persona', v)} options={[{ value: 'friday', label: 'Friday (frech, „boss")' }, { value: 'sachlich', label: 'Sachlich' }]} />
-          </Field>
+
 
           <div>
             <div className="mb-1.5 flex items-baseline justify-between gap-2">

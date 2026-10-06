@@ -8,6 +8,7 @@ import { deleteDemo, hasDemo, seedDemo } from '../lib/seed'
 import { usePeriods, useSetting, useToday } from '../lib/hooks'
 import { Button, IconButton, Input, PageHeader, Panel, Segmented, useConfirm } from '../components/ui'
 import { KiSettings } from '../components/KiSettings'
+import { AssistantSettings } from '../components/AssistantSettings'
 import { Link } from 'react-router-dom'
 
 export default function SettingsPage() {
@@ -63,6 +64,7 @@ export default function SettingsPage() {
       <div className="grid gap-5 lg:grid-cols-2">
         <div className="space-y-5">
           <KiSettings />
+          <AssistantSettings />
           <Link to="/design" className="panel flex items-center gap-4 rounded-2xl border border-line bg-surface p-4 hover:bg-sunken">
             <span className="flex size-12 shrink-0 items-center justify-center rounded-xl bg-brass-soft text-brass"><Palette size={24} /></span>
             <span className="min-w-0 flex-1">

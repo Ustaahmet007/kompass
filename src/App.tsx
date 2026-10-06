@@ -6,6 +6,7 @@ import { Sheet, cx } from './components/ui'
 import { useSetting } from './lib/hooks'
 import { applyTheme, DEFAULT_THEME, type ThemeSettings } from './lib/theme'
 import { FramedImage } from './components/Picture'
+import { setVoicePrefs, type VoicePrefs } from './lib/voice'
 import Today from './pages/Today'
 import Timetable from './pages/Timetable'
 import Tasks from './pages/Tasks'
@@ -81,6 +82,8 @@ function Badge({ n }: { n: number }) {
 }
 
 function Shell() {
+  const voicePrefs = useSetting<VoicePrefs | null>('voice', null)
+  useEffect(() => setVoicePrefs(voicePrefs), [voicePrefs])
   const design = useDesign()
   const due = useDueCount()
   // Sidebar when there is room for it: iPad landscape, or any wide window. Split View and portrait get the tab bar.

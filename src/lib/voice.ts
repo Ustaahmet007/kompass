@@ -35,16 +35,44 @@ export function unlockSpeech() {
   window.speechSynthesis.speak(u)
 }
 
-export function speak(text: string, onEnd?: () => void) {
+export interface VoicePrefs {
+  de: string | null // voiceURI for German replies
+  en: string | null // voiceURI for English replies
+  rate: number
+  pitch: number
+}
+export const DEFAULT_VOICE: VoicePrefs = { de: null, en: null, rate: 1.05, pitch: 1 }
+let prefs: VoicePrefs = DEFAULT_VOICE
+/** Kept in sync from the settings (see useVoicePrefs in App). */
+export function setVoicePrefs(p: VoicePrefs | null) {
+  prefs = { ...DEFAULT_VOICE, ...(p ?? {}) }
+}
+
+/** Voices installed on this device, German and English first. */
+export function listVoices() {
+  if (!canSpeak) return []
+  return window.speechSynthesis
+    .getVoices()
+    .filter((v) => /^(de|en)/i.test(v.lang))
+    .sort((a, b) => a.lang.localeCompare(b.lang) || a.name.localeCompare(b.name))
+}
+
+export function speak(text: string, onEnd?: () => void, override?: Partial<VoicePrefs>) {
   if (!canSpeak) return onEnd?.()
   window.speechSynthesis.cancel()
+  const p = { ...prefs, ...override }
   const clean = cleanForSpeech(text)
   const lang = guessLang(clean)
   const u = new SpeechSynthesisUtterance(clean)
   u.lang = lang
-  const v = pickVoice(lang) ?? pickVoice('de-DE') ?? pickVoice('en-GB')
-  if (v) u.voice = v
-  u.rate = 1.05
+  const chosen = window.speechSynthesis.getVoices().find((v) => v.voiceURI === (lang.startsWith('en') ? p.en : p.de))
+  const v = chosen ?? pickVoice(lang) ?? pickVoice('de-DE') ?? pickVoice('en-GB')
+  if (v) {
+    u.voice = v
+    u.lang = v.lang
+  }
+  u.rate = p.rate
+  u.pitch = p.pitch
   u.onend = () => onEnd?.()
   u.onerror = () => onEnd?.()
   window.speechSynthesis.speak(u)

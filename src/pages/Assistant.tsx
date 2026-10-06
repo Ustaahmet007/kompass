@@ -3,6 +3,7 @@ import { useLiveQuery } from 'dexie-react-hooks'
 import { Mic, MicOff, Send, Sparkles, Trash2, Undo2, Volume2, VolumeX, Sunrise } from 'lucide-react'
 import { db, getSetting, setSetting, type ChatMessage } from '../db'
 import { todayISO } from '../lib/date'
+import { resolvePersona, type CustomPersona } from '../lib/personas'
 import { askAssistant, getBriefing, undoAction } from '../lib/assistant'
 import { canListen, canSpeak, listen, speak, stopSpeaking, unlockSpeech } from '../lib/voice'
 import { useSetting } from '../lib/hooks'
@@ -15,7 +16,7 @@ export default function Assistant() {
   const ki = useKi()
   const messages = useLiveQuery(() => db.chat.orderBy('ts').toArray(), [], [] as ChatMessage[])
   const voiceOut = useSetting('voiceOut', true)
-  const persona = useSetting<'friday' | 'sachlich'>('persona', 'friday')
+  const persona = resolvePersona(useSetting<string>('persona', 'friday'), useSetting<CustomPersona | null>('customPersona', null))
   const [input, setInput] = useState('')
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState('')
@@ -111,7 +112,7 @@ export default function Assistant() {
     )
   }
 
-  const name = persona === 'friday' ? 'Friday' : 'Assistent'
+  const name = persona.name === 'Sachlich' ? 'Assistent' : persona.name
 
   return (
     <div className="flex min-h-[calc(100dvh-10rem)] flex-col">
