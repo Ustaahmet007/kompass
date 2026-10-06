@@ -8,21 +8,26 @@ import { db } from '../db'
  */
 export async function compressImage(file: File, maxDim = 1800, quality = 0.82) {
   if (!file.type.startsWith('image/')) throw new Error('Das ist kein Bild.')
+  // Decode through an <img>: Safari applies the photo's EXIF rotation there, so pictures come out upright.
   let bitmap: ImageBitmap | HTMLImageElement
+  const src = URL.createObjectURL(file)
   try {
-    bitmap = await createImageBitmap(file)
-  } catch {
-    // Fallback for formats createImageBitmap does not handle
     bitmap = await new Promise<HTMLImageElement>((resolve, reject) => {
       const img = new Image()
       img.onload = () => resolve(img)
       img.onerror = () => reject(new Error('Das Bild konnte nicht geöffnet werden.'))
-      img.src = URL.createObjectURL(file)
+      img.src = src
     })
+  } catch {
+    bitmap = await createImageBitmap(file, { imageOrientation: 'from-image' })
+  } finally {
+    setTimeout(() => URL.revokeObjectURL(src), 0)
   }
-  const scale = Math.min(1, maxDim / Math.max(bitmap.width, bitmap.height))
-  const width = Math.round(bitmap.width * scale)
-  const height = Math.round(bitmap.height * scale)
+  const w0 = 'naturalWidth' in bitmap ? bitmap.naturalWidth : bitmap.width
+  const h0 = 'naturalHeight' in bitmap ? bitmap.naturalHeight : bitmap.height
+  const scale = Math.min(1, maxDim / Math.max(w0, h0))
+  const width = Math.round(w0 * scale)
+  const height = Math.round(h0 * scale)
   const canvas = document.createElement('canvas')
   canvas.width = width
   canvas.height = height
@@ -51,6 +56,23 @@ export interface Framing {
   zoom: number
 }
 export const DEFAULT_FRAMING: Framing = { focusX: 50, focusY: 50, zoom: 1 }
+
+/** Turns a stored picture 90° clockwise (keeps its id, resets the framing). */
+export async function rotateImage(id: number) {
+  const row = await db.images.get(id)
+  if (!row) return
+  const bmp = await createImageBitmap(row.blob)
+  const canvas = document.createElement('canvas')
+  canvas.width = bmp.height
+  canvas.height = bmp.width
+  const ctx = canvas.getContext('2d')!
+  ctx.translate(canvas.width, 0)
+  ctx.rotate(Math.PI / 2)
+  ctx.drawImage(bmp, 0, 0)
+  const blob = await new Promise<Blob>((resolve, reject) => canvas.toBlob((b) => (b ? resolve(b) : reject(new Error('Drehen ging nicht.'))), 'image/jpeg', 0.88))
+  // New createdAt so every view picks up the new pixels.
+  await db.images.update(id, { blob, width: canvas.width, height: canvas.height, createdAt: Date.now(), ...DEFAULT_FRAMING })
+}
 
 export function setFraming(id: number, f: Partial<Framing>) {
   return db.images.update(id, f)

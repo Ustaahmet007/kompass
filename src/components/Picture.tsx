@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState, type PointerEvent, type ReactNode } from 'react'
-import { Move, RotateCcw, ZoomIn } from 'lucide-react'
-import { DEFAULT_FRAMING, framingStyle, setFraming, useImage, type Framing } from '../lib/images'
+import { Move, RotateCcw, RotateCw, ZoomIn } from 'lucide-react'
+import { DEFAULT_FRAMING, framingStyle, rotateImage, setFraming, useImage, type Framing } from '../lib/images'
 import { Button, Sheet, cx } from './ui'
 
 /** A stored picture filling its box, framed the way the user set it. */
@@ -96,7 +96,6 @@ function FramingEditor({ id, kind, onClose, overlay, title }: { id: number; kind
       title={title}
       footer={
         <>
-          <Button variant="ghost" className="mr-auto" onClick={() => setF(DEFAULT_FRAMING)}><RotateCcw size={17} /> Zurücksetzen</Button>
           <Button variant="ghost" onClick={onClose}>Abbrechen</Button>
           <Button variant="primary" onClick={save}>Fertig</Button>
         </>
@@ -127,6 +126,10 @@ function FramingEditor({ id, kind, onClose, overlay, title }: { id: number; kind
         <input type="range" min={1} max={3} step={0.02} value={f.zoom} onChange={(e) => setF({ ...f, zoom: Number(e.target.value) })} className="w-full accent-[var(--brass)]" />
         <span className="w-14 shrink-0 text-right text-sm whitespace-nowrap text-ink-2 tabular">{Math.round(f.zoom * 100)} %</span>
       </label>
+      <div className="mt-3 flex flex-wrap gap-2">
+        <Button onClick={async () => { await rotateImage(id); setF(DEFAULT_FRAMING) }}><RotateCw size={17} /> Drehen</Button>
+        <Button variant="ghost" onClick={() => setF(DEFAULT_FRAMING)}><RotateCcw size={17} /> Zurücksetzen</Button>
+      </div>
     </Sheet>
   )
 }

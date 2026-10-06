@@ -8,11 +8,15 @@ const base = '/kompass/'
 
 export default defineConfig({
   base,
+  define: {
+    __APP_VERSION__: JSON.stringify(new Date().toLocaleString('de-AT', { timeZone: 'Europe/Vienna', day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' })),
+  },
   plugins: [
     react(),
     tailwindcss(),
     VitePWA({
       registerType: 'autoUpdate',
+      injectRegister: false, // registered in main.tsx so updates reload the page right away
       includeAssets: ['icon.svg', 'apple-touch-icon.png'],
       manifest: {
         name: 'Kompass – HTL Schulbegleiter',

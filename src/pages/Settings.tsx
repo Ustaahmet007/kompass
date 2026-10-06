@@ -141,7 +141,7 @@ export default function SettingsPage() {
           </div>
         </Panel>
       </div>
-      <p className="mt-8 text-sm text-ink-3">Kompass · Phase 2</p>
+      <p className="mt-8 text-sm text-ink-3">Kompass · Version vom {__APP_VERSION__}</p>
       {confirm.element}
     </div>
   )
