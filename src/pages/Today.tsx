@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import { useImageUrl } from '../lib/images'
+import { FramedImage } from '../components/Picture'
 import { Link } from 'react-router-dom'
 import { useLiveQuery } from 'dexie-react-hooks'
 import { Plus } from 'lucide-react'
@@ -237,7 +238,7 @@ function TodayHeader({ date, hour, meta }: { date: string; hour: number; meta: R
   if (cover) {
     return (
       <header className="relative mb-7 overflow-hidden rounded-3xl">
-        <img src={cover} alt="" className="h-52 w-full object-cover sm:h-64" />
+        <div className="h-52 w-full sm:h-64"><FramedImage id={coverId} /></div>
         <div className="absolute inset-0 bg-gradient-to-t from-black/65 via-black/20 to-transparent" />
         <div className="absolute inset-x-0 bottom-0 px-5 pb-4 text-white sm:px-7 sm:pb-6">
           <p className="text-lg font-medium text-white/90">{hello}</p>

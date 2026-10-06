@@ -1,11 +1,11 @@
 import { useEffect, useState, type ReactNode } from 'react'
 import { HashRouter, NavLink, Route, Routes, useLocation } from 'react-router-dom'
-import { BookOpen, CalendarDays, ClipboardList, Compass, Flag, GraduationCap, LayoutGrid, MoreHorizontal, NotebookPen, Settings, Sparkles, Sun, Target, Timer as TimerIcon } from 'lucide-react'
+import { BookOpen, CalendarDays, ClipboardList, Compass, Flag, GraduationCap, LayoutGrid, MoreHorizontal, NotebookPen, Palette, Settings, Sparkles, Sun, Target, Timer as TimerIcon } from 'lucide-react'
 import { useDueCount } from './components/tasks'
 import { Sheet, cx } from './components/ui'
 import { useSetting } from './lib/hooks'
 import { applyTheme, DEFAULT_THEME, type ThemeSettings } from './lib/theme'
-import { useImageUrl } from './lib/images'
+import { FramedImage } from './components/Picture'
 import Today from './pages/Today'
 import Timetable from './pages/Timetable'
 import Tasks from './pages/Tasks'
@@ -19,6 +19,7 @@ import Notes from './pages/Notes'
 import TimerPage from './pages/Timer'
 import Plans from './pages/Plans'
 import Assistant from './pages/Assistant'
+import DesignPage from './pages/Design'
 
 type NavItem = { to: string; label: string; icon: ReactNode; badge?: boolean }
 const NAV: NavItem[] = [
@@ -33,6 +34,7 @@ const NAV: NavItem[] = [
   { to: '/pruefungen', label: 'Prüfungen', icon: <Target size={22} /> },
   { to: '/kalender', label: 'Kalender', icon: <CalendarDays size={22} /> },
   { to: '/faecher', label: 'Fächer', icon: <BookOpen size={22} /> },
+  { to: '/design', label: 'Design', icon: <Palette size={22} /> },
   { to: '/einstellungen', label: 'Einstellungen', icon: <Settings size={22} /> },
 ]
 const TAB_ITEMS = NAV.slice(0, 4)
@@ -62,11 +64,10 @@ function useDesign() {
 /** Optional photo behind the whole app, softened so text stays readable. */
 function BackgroundImage({ design }: { design: ThemeSettings }) {
   const bgId = useSetting<number | null>('bgImageId', null)
-  const url = useImageUrl(design.background === 'image' ? bgId : null)
-  if (design.background !== 'image' || !url) return null
+  if (design.background !== 'image' || !bgId) return null
   return (
-    <div className="pointer-events-none fixed inset-0 -z-10" aria-hidden>
-      <img src={url} alt="" className="size-full object-cover" style={{ filter: design.bgBlur ? `blur(${design.bgBlur}px)` : undefined, transform: design.bgBlur ? 'scale(1.06)' : undefined }} />
+    <div className="pointer-events-none fixed inset-0 -z-10 overflow-hidden" aria-hidden>
+      <FramedImage id={bgId} blur={design.bgBlur} />
       <div className="absolute inset-0" style={{ background: 'var(--paper)', opacity: design.bgDim / 100 }} />
     </div>
   )
@@ -126,6 +127,7 @@ function Shell() {
       <Route path="/lernziele" element={<Plans />} />
       <Route path="/lernziele/:id" element={<Plans />} />
       <Route path="/assistent" element={<Assistant />} />
+      <Route path="/design" element={<DesignPage />} />
       <Route path="*" element={<Today />} />
     </Routes>
   )

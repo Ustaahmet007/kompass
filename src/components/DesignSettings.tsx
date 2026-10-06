@@ -1,36 +1,41 @@
 import { useRef, useState } from 'react'
-import { Check, ImagePlus, Trash2 } from 'lucide-react'
+import { Check, Crop, ImagePlus, Trash2 } from 'lucide-react'
+import { FramedImage, FramingSheet, frameAspect, type FrameKind } from './Picture'
 import { setSetting } from '../db'
 import { DEFAULT_THEME, FONTS, PRESETS, type Background, type FontId, type PresetId, type SubjectColorMode, type ThemeSettings, SUBJECT_PALETTES, normalizeColorMode } from '../lib/theme'
-import { deleteImage, saveImage, useImageUrl } from '../lib/images'
+import { deleteImage, saveImage } from '../lib/images'
 import { useSetting } from '../lib/hooks'
 import { Button, Field, Input, Panel, Segmented, cx } from './ui'
 
 const ACCENTS = ['#a35d16', '#c9a14a', '#b44a6c', '#3d7a48', '#2f6db5', '#7c4dbd', '#c2410c', '#0f766e']
 
-/** Upload button + preview for one stored picture setting. */
-export function ImagePicker({ value, onChange, label, aspect = 'aspect-[3/1]' }: { value: number | null | undefined; onChange: (id: number | null) => void; label: string; aspect?: string }) {
-  const url = useImageUrl(value)
+/** Upload button + framed preview for one stored picture. A new picture opens the framing editor right away. */
+export function ImagePicker({ value, onChange, label, kind, overlay }: { value: number | null | undefined; onChange: (id: number | null) => void; label: string; kind: FrameKind; overlay?: React.ReactNode }) {
   const ref = useRef<HTMLInputElement>(null)
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState('')
+  const [framing, setFramingOpen] = useState(false)
   const pick = async (f?: File) => {
     if (!f) return
     setBusy(true)
     setError('')
     try {
       onChange(await saveImage(f, value))
+      setFramingOpen(true)
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Das Bild ging nicht.')
     }
     setBusy(false)
   }
+  const aspect = frameAspect(kind)
   return (
     <div>
-      {url ? (
-        <div className={cx('relative overflow-hidden rounded-xl', aspect)}>
-          <img src={url} alt={label} className="size-full object-cover" />
-          <div className="absolute right-2 bottom-2 flex gap-2">
+      {value ? (
+        <div className="relative overflow-hidden rounded-xl bg-sunken" style={{ aspectRatio: String(aspect) }}>
+          <FramedImage id={value} alt={label} />
+          {overlay && <div className="pointer-events-none absolute inset-0">{overlay}</div>}
+          <div className="absolute right-2 bottom-2 flex flex-wrap justify-end gap-2">
+            <Button className="bg-surface" onClick={() => setFramingOpen(true)}><Crop size={17} /> Ausschnitt</Button>
             <Button className="bg-surface" onClick={() => ref.current?.click()} disabled={busy}><ImagePlus size={17} /> Ändern</Button>
             <Button variant="danger" onClick={async () => { await deleteImage(value); onChange(null) }} aria-label={`${label} entfernen`}><Trash2 size={17} /></Button>
           </div>
@@ -40,7 +45,8 @@ export function ImagePicker({ value, onChange, label, aspect = 'aspect-[3/1]' }:
           type="button"
           onClick={() => ref.current?.click()}
           disabled={busy}
-          className={cx('flex w-full flex-col items-center justify-center gap-1 rounded-xl border-2 border-dashed border-line text-ink-2 hover:border-brass hover:text-brass', aspect)}
+          className="flex w-full flex-col items-center justify-center gap-1 rounded-xl border-2 border-dashed border-line text-ink-2 hover:border-brass hover:text-brass"
+          style={{ aspectRatio: String(Math.max(aspect, 2.5)) }}
         >
           <ImagePlus size={24} />
           <span className="font-medium">{busy ? 'Wird gespeichert …' : `${label} auswählen`}</span>
@@ -48,6 +54,7 @@ export function ImagePicker({ value, onChange, label, aspect = 'aspect-[3/1]' }:
       )}
       <input ref={ref} type="file" accept="image/*" hidden onChange={(e) => { pick(e.target.files?.[0]); e.target.value = '' }} />
       {error && <p className="mt-1 text-sm text-danger">{error}</p>}
+      <FramingSheet id={value} kind={kind} open={framing} onClose={() => setFramingOpen(false)} overlay={overlay} title={`${label}: Ausschnitt`} />
     </div>
   )
 }
@@ -62,8 +69,8 @@ export function DesignSettings() {
   const dark = document.documentElement.dataset.theme === 'dark'
 
   return (
-    <Panel title="Design">
-      <div className="space-y-6 px-4 pt-1 pb-5">
+    <Panel>
+      <div className="space-y-6 px-4 pt-4 pb-5">
         <Field label="Wie soll Kompass dich nennen?" hint="Für die Begrüßung auf „Heute“.">
           <Input value={name} onChange={(e) => setSetting('userName', e.target.value)} placeholder="z. B. Ahmet" />
         </Field>
@@ -158,7 +165,7 @@ export function DesignSettings() {
               )
             })}
           </div>
-          <p className="mt-1.5 text-sm text-ink-3">„Eigene Farben" nimmt die Farbe, die du beim Fach eingestellt hast.</p>
+          <p className="mt-1.5 text-sm text-ink-3">„Eigene Farben“ nimmt die Farbe, die du beim Fach eingestellt hast.</p>
         </div>
 
         <div className="space-y-3">
@@ -167,7 +174,7 @@ export function DesignSettings() {
           </Field>
           {design.background === 'image' && (
             <>
-              <ImagePicker value={bgImage} onChange={(id) => setSetting('bgImageId', id)} label="Hintergrundfoto" aspect="aspect-[4/3]" />
+              <ImagePicker value={bgImage} onChange={(id) => setSetting('bgImageId', id)} label="Hintergrundfoto" kind="background" />
               <Field label={`Abdunkeln: ${design.bgDim} %`} hint="Mehr = Text besser lesbar">
                 <input type="range" min={0} max={90} step={5} value={design.bgDim} onChange={(e) => set({ bgDim: Number(e.target.value) })} className="w-full accent-[var(--brass)]" />
               </Field>
@@ -179,10 +186,23 @@ export function DesignSettings() {
         </div>
 
         <Field label="Titelbild auf „Heute“">
-          <ImagePicker value={homeCover} onChange={(id) => setSetting('homeCoverId', id)} label="Titelbild" />
+          <ImagePicker value={homeCover} onChange={(id) => setSetting('homeCoverId', id)} label="Titelbild" kind="home" overlay={<CoverOverlay name={name} />} />
         </Field>
         <p className="text-sm text-ink-3">Titelbilder für einzelne Fächer stellst du auf der jeweiligen Fach-Seite ein. Fotos werden verkleinert und bleiben nur auf diesem Gerät (und in deiner Sicherung).</p>
       </div>
     </Panel>
+  )
+}
+
+/** Greeting + date as they appear on the Heute cover, for previews. */
+export function CoverOverlay({ name }: { name: string }) {
+  return (
+    <>
+      <div className="absolute inset-0 bg-gradient-to-t from-black/65 via-black/20 to-transparent" />
+      <div className="absolute bottom-0 left-0 px-4 pb-3 text-white">
+        <p className="text-sm text-white/90">Guten Morgen{name ? `, ${name}` : ''}</p>
+        <p className="display text-2xl">Dienstag, 6. Oktober</p>
+      </div>
+    </>
   )
 }

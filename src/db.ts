@@ -138,6 +138,10 @@ export interface StoredImage {
   width: number
   height: number
   createdAt: number
+  /** Framing: focus point in % and zoom factor (1 = fit). */
+  focusX?: number
+  focusY?: number
+  zoom?: number
 }
 
 export interface Usage {

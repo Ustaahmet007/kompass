@@ -6,6 +6,7 @@ import { db, type Lesson } from '../db'
 import { weightSum } from '../lib/grades'
 import { useSubjects } from '../lib/hooks'
 import { useImageUrl } from '../lib/images'
+import { FramedImage } from '../components/Picture'
 import { SubjectSheet } from '../components/SubjectSheet'
 import { Button, Empty, PageHeader, Panel } from '../components/ui'
 
@@ -58,7 +59,7 @@ function SubjectThumb({ coverId, color, short }: { coverId?: number | null; colo
   const url = useImageUrl(coverId)
   return (
     <span className="relative flex h-11 w-14 shrink-0 items-center justify-center overflow-hidden rounded-lg text-sm font-bold text-white" style={{ background: color }}>
-      {url && <img src={url} alt="" className="absolute inset-0 size-full object-cover" />}
+      {url && <span className="absolute inset-0"><FramedImage id={coverId} /></span>}
       <span className={url ? 'relative rounded px-1 text-xs' : ''} style={url ? { background: color } : undefined}>{short}</span>
     </span>
   )

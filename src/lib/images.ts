@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useState, type CSSProperties } from 'react'
 import { useLiveQuery } from 'dexie-react-hooks'
 import { db } from '../db'
 
@@ -43,6 +43,51 @@ export async function saveImage(file: File, replaceId?: number | null) {
 
 export function deleteImage(id?: number | null) {
   return id ? db.images.delete(id) : Promise.resolve()
+}
+
+export interface Framing {
+  focusX: number
+  focusY: number
+  zoom: number
+}
+export const DEFAULT_FRAMING: Framing = { focusX: 50, focusY: 50, zoom: 1 }
+
+export function setFraming(id: number, f: Partial<Framing>) {
+  return db.images.update(id, f)
+}
+
+/** Picture URL plus its framing. */
+export function useImage(id?: number | null) {
+  const img = useLiveQuery(() => (id ? db.images.get(id) : undefined), [id])
+  const url = useBlobUrl(img?.blob, img ? `${img.id}-${img.createdAt}` : '')
+  const framing: Framing = { focusX: img?.focusX ?? 50, focusY: img?.focusY ?? 50, zoom: img?.zoom ?? 1 }
+  return { url, framing, width: img?.width ?? 0, height: img?.height ?? 0 }
+}
+
+/** CSS for an <img> that fills its box using the stored framing. */
+export function framingStyle(f: Framing, extraScale = 1): CSSProperties {
+  return {
+    objectFit: 'cover',
+    objectPosition: `${f.focusX}% ${f.focusY}%`,
+    transform: `scale(${f.zoom * extraScale})`,
+    transformOrigin: `${f.focusX}% ${f.focusY}%`,
+  }
+}
+
+/** One object URL per stored picture; re-reads after a framing change don't recreate it (no flicker). */
+function useBlobUrl(blob: Blob | undefined, key: string) {
+  const [url, setUrl] = useState<string | null>(null)
+  useEffect(() => {
+    if (!blob || !key) {
+      setUrl(null)
+      return
+    }
+    const u = URL.createObjectURL(blob)
+    setUrl(u)
+    return () => URL.revokeObjectURL(u)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [key])
+  return url
 }
 
 /** Object URL for a stored picture (revoked automatically). */

@@ -1,6 +1,6 @@
 import { useRef, useState } from 'react'
 import { useLiveQuery } from 'dexie-react-hooks'
-import { Download, Plus, Share, Trash2, Upload } from 'lucide-react'
+import { ChevronRight, Download, Palette, Plus, Share, Trash2, Upload } from 'lucide-react'
 import { db, setSetting } from '../db'
 import { addDays, minutesOf, mondayOf, weekKindFor } from '../lib/date'
 import { exportData, importData } from '../lib/backup'
@@ -8,7 +8,7 @@ import { deleteDemo, hasDemo, seedDemo } from '../lib/seed'
 import { usePeriods, useSetting, useToday } from '../lib/hooks'
 import { Button, IconButton, Input, PageHeader, Panel, Segmented, useConfirm } from '../components/ui'
 import { KiSettings } from '../components/KiSettings'
-import { DesignSettings } from '../components/DesignSettings'
+import { Link } from 'react-router-dom'
 
 export default function SettingsPage() {
   const today = useToday()
@@ -63,7 +63,14 @@ export default function SettingsPage() {
       <div className="grid gap-5 lg:grid-cols-2">
         <div className="space-y-5">
           <KiSettings />
-          <DesignSettings />
+          <Link to="/design" className="panel flex items-center gap-4 rounded-2xl border border-line bg-surface p-4 hover:bg-sunken">
+            <span className="flex size-12 shrink-0 items-center justify-center rounded-xl bg-brass-soft text-brass"><Palette size={24} /></span>
+            <span className="min-w-0 flex-1">
+              <span className="block font-semibold">Design</span>
+              <span className="block text-sm text-ink-2">Farben, Schrift, Fachfarben, Hintergrund und Bilder, mit Live-Vorschau</span>
+            </span>
+            <ChevronRight size={20} className="text-ink-3" />
+          </Link>
 
           <Panel title="A/B-Wochen">
             <div className="space-y-2 px-4 pt-1 pb-4">
