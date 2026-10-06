@@ -7,6 +7,7 @@ import './index.css'
 import App from './App'
 import { ensureDefaults } from './lib/seed'
 import { requestPersistence } from './db'
+import { installSyncHooks, startSync } from './lib/sync'
 import { registerSW } from 'virtual:pwa-register'
 
 // Offline support + updates: a new version is fetched in the background and the page reloads into it.
@@ -21,10 +22,14 @@ registerSW({
   },
 })
 
+// Hooks must be in place before the first write so every change is tracked.
+installSyncHooks()
+
 ensureDefaults()
   .catch((e) => console.error('Kompass: Startdaten konnten nicht angelegt werden', e))
   .finally(() => {
     requestPersistence()
+    void startSync()
     createRoot(document.getElementById('root')!).render(
       <StrictMode>
         <App />

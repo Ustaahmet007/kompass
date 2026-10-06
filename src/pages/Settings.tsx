@@ -8,6 +8,7 @@ import { deleteDemo, hasDemo, seedDemo } from '../lib/seed'
 import { usePeriods, useSetting, useToday } from '../lib/hooks'
 import { Button, IconButton, Input, PageHeader, Panel, Segmented, useConfirm } from '../components/ui'
 import { KiSettings } from '../components/KiSettings'
+import { SyncSettings } from '../components/SyncSettings'
 import { AssistantSettings } from '../components/AssistantSettings'
 import { Link } from 'react-router-dom'
 
@@ -63,6 +64,7 @@ export default function SettingsPage() {
       <PageHeader title="Einstellungen" />
       <div className="grid gap-5 lg:grid-cols-2">
         <div className="space-y-5">
+          <SyncSettings />
           <KiSettings />
           <AssistantSettings />
           <Link to="/design" className="panel flex items-center gap-4 rounded-2xl border border-line bg-surface p-4 hover:bg-sunken">
@@ -85,7 +87,7 @@ export default function SettingsPage() {
           <Panel title="Daten sichern">
             <div className="space-y-3 px-4 pt-1 pb-4">
               <p className="text-ink-2">
-                Deine Daten liegen nur auf diesem Gerät ({counts.subjects} Fächer, {counts.tasks} Aufgaben, {counts.grades} Noten). Sichere sie regelmäßig in „Dateien" oder iCloud.
+                Zusätzlich zum Sync: eine Sicherung als Datei. Auf diesem Gerät ({counts.subjects} Fächer, {counts.tasks} Aufgaben, {counts.grades} Noten). Sichere sie regelmäßig in „Dateien" oder iCloud.
               </p>
               <p className="text-sm text-ink-3">{lastExport ? `Letzte Sicherung: ${new Date(lastExport).toLocaleDateString('de-AT')}` : 'Noch nie gesichert.'}</p>
               <div className="flex flex-wrap gap-2">

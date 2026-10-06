@@ -7,6 +7,7 @@ import { useSetting } from './lib/hooks'
 import { applyTheme, DEFAULT_THEME, type ThemeSettings } from './lib/theme'
 import { FramedImage } from './components/Picture'
 import { setVoicePrefs, type VoicePrefs } from './lib/voice'
+import { useSyncState } from './components/SyncSettings'
 import Today from './pages/Today'
 import Timetable from './pages/Timetable'
 import Tasks from './pages/Tasks'
@@ -144,6 +145,7 @@ function Shell() {
             <Compass size={26} className="text-brass" />
             <span className="display text-2xl">Kompass</span>
           </div>
+          <SyncDot />
           <nav className="flex flex-col gap-0.5">
             {NAV.map((n) => (
               <NavLink
@@ -221,5 +223,17 @@ export default function App() {
     <HashRouter>
       <Shell />
     </HashRouter>
+  )
+}
+
+function SyncDot() {
+  const s = useSyncState()
+  if (s.status === 'off') return null
+  const text = s.status === 'syncing' ? 'Synchronisiert …' : s.status === 'offline' ? 'Offline' : s.status === 'error' ? 'Sync-Fehler' : 'Synchronisiert'
+  return (
+    <NavLink to="/einstellungen" className="-mt-4 mb-4 flex items-center gap-2 px-3 text-xs text-ink-3 hover:text-ink">
+      <span className={cx('size-2 rounded-full', s.status === 'error' ? 'bg-danger' : s.status === 'offline' ? 'bg-ink-3' : s.status === 'syncing' ? 'animate-pulse bg-brass' : 'bg-ok')} />
+      {text}
+    </NavLink>
   )
 }
