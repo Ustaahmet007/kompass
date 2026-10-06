@@ -234,6 +234,13 @@ export function MusicPanel() {
         </div>
       )}
 
+      {!music.current && (
+        <div className="space-y-2 pt-1">
+          <span className="block text-sm font-medium text-ink-2">Eigenes GIF (geht auch ohne Musik)</span>
+          <GifArea music={music} save={(p) => save({ ...p, view: 'gif' })} />
+        </div>
+      )}
+
       {music.current && (
         <>
           <Segmented
@@ -300,7 +307,7 @@ function GifArea({ music, save }: { music: MusicSettings; save: (p: Partial<Musi
 /** The user's GIF as a dimmed background behind the timer, if switched on. */
 export function TimerBackdrop() {
   const music = useSetting<MusicSettings>('music', DEFAULT_MUSIC)
-  const on = music.view === 'gif' && music.gifBehindTimer && !!music.gifId
+  const on = (music.view === 'gif' || !music.current) && music.gifBehindTimer && !!music.gifId
   const url = useImageUrl(on ? music.gifId : null)
   if (!url) return null
   return (
