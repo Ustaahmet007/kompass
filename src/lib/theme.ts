@@ -54,6 +54,7 @@ export interface ThemeSettings {
   background: Background
   bgDim: number // 0–90 %
   bgBlur: number // px
+  subjectColors?: SubjectColorMode
 }
 
 export const DEFAULT_THEME: ThemeSettings = { preset: 'kamin', mode: 'system', accent: null, font: 'fraunces', background: 'plain', bgDim: 55, bgBlur: 6 }
@@ -101,4 +102,31 @@ export function applyTheme(t: ThemeSettings, systemDark: boolean) {
   root.style.colorScheme = dark ? 'dark' : 'light'
   document.querySelector('meta[name="theme-color"]')?.setAttribute('content', tok.paper)
   return { dark, tokens: tok }
+}
+
+export type SubjectColorMode = 'gedaempft' | 'kraeftig' | 'schlicht'
+
+function hexToHsl(hex: string) {
+  const { r, g, b } = hexToRgb(hex)
+  const [R, G, B] = [r / 255, g / 255, b / 255]
+  const max = Math.max(R, G, B)
+  const min = Math.min(R, G, B)
+  const l = (max + min) / 2
+  if (max === min) return { h: 0, s: 0, l }
+  const d = max - min
+  const s = l > 0.5 ? d / (2 - max - min) : d / (max + min)
+  const h = max === R ? (G - B) / d + (G < B ? 6 : 0) : max === G ? (B - R) / d + 2 : (R - G) / d + 4
+  return { h: h * 60, s, l }
+}
+
+/**
+ * Subject colours as shown in the app. "gedämpft" turns bright picks into calm, earthy tones
+ * that sit well with the warm themes; white text stays readable on them.
+ */
+export function displaySubjectColor(hex: string, mode: SubjectColorMode = 'gedaempft') {
+  if (mode === 'kraeftig' || !/^#?[0-9a-f]{3,6}$/i.test(hex)) return hex
+  const { h, s, l } = hexToHsl(hex)
+  const s2 = Math.min(s, 0.3)
+  const l2 = Math.min(0.46, Math.max(0.36, l))
+  return `hsl(${h.toFixed(0)} ${(s2 * 100).toFixed(0)}% ${(l2 * 100).toFixed(0)}%)`
 }

@@ -5,7 +5,8 @@ import { AlertTriangle, ArrowLeft, ImagePlus, Pencil, Plus, Trash2 } from 'lucid
 import { db, type Exam, type Grade, type Lesson, type Task } from '../db'
 import { DAY_SHORT, formatDate } from '../lib/date'
 import { formatAvg, gradeColor, gradeName, projectedGrade, runningAverages, weightSum, weightedAverage } from '../lib/grades'
-import { lessonSpan, usePeriods, useSubjects, useToday } from '../lib/hooks'
+import { lessonSpan, usePeriods, useSubjectColorMode, useSubjects, useToday } from '../lib/hooks'
+import { displaySubjectColor } from '../lib/theme'
 import { ExamSheet, GradeSheet } from '../components/forms'
 import { GradeTrend, TrendLegend } from '../components/GradeTrend'
 import { Notenrechner } from '../components/Notenrechner'
@@ -35,6 +36,7 @@ export default function SubjectDetail() {
   const [showDone, setShowDone] = useState(false)
   const [coverOpen, setCoverOpen] = useState(false)
   const cover = useImageUrl(subject?.coverId)
+  const colorMode = useSubjectColorMode()
   const confirm = useConfirm()
 
   if (subject === undefined) return null
@@ -42,6 +44,7 @@ export default function SubjectDetail() {
     return <Empty action={<Link to="/faecher"><Button>Zu den Fächern</Button></Link>}>Dieses Fach gibt es nicht mehr.</Empty>
   }
 
+  const tint = displaySubjectColor(subject.color, colorMode)
   const avg = weightedAverage(subject, grades)
   const projected = projectedGrade(avg)
   const sum = weightSum(subject)
@@ -67,12 +70,12 @@ export default function SubjectDetail() {
       {cover && (
         <div className="relative mb-5 overflow-hidden rounded-3xl">
           <img src={cover} alt="" className="h-40 w-full object-cover sm:h-52" />
-          <div className="absolute inset-x-0 bottom-0 h-1.5" style={{ background: subject.color }} />
+          <div className="absolute inset-x-0 bottom-0 h-1.5" style={{ background: tint }} />
         </div>
       )}
-      <header className="mb-6 flex flex-wrap items-start gap-4 border-l-8 pl-4" style={{ borderColor: subject.color }}>
+      <header className="mb-6 flex flex-wrap items-start gap-4 border-l-8 pl-4" style={{ borderColor: tint }}>
         <div className="min-w-0 flex-1">
-          <p className="font-semibold" style={{ color: subject.color }}>{subject.short}</p>
+          <p className="font-semibold" style={{ color: tint }}>{subject.short}</p>
           <h1 className="display text-3xl sm:text-4xl">{subject.name}</h1>
           <p className="mt-1.5 text-ink-2">
             {[subject.teacher, subject.room].filter(Boolean).join(' · ') || 'Keine Lehrkraft eingetragen'}

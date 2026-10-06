@@ -3,7 +3,7 @@ import { useLiveQuery } from 'dexie-react-hooks'
 import { Plus } from 'lucide-react'
 import { db, type Lesson, type WeekKind } from '../db'
 import { DAY_NAMES, DAY_SHORT, minutesOf, mondayOf, weekKindFor, weekdayIndex } from '../lib/date'
-import { useNow, usePeriods, useSetting, useSubjects, useToday } from '../lib/hooks'
+import { useNow, usePeriods, useSetting, useSubjectColorMode, useSubjects, useToday } from '../lib/hooks'
 import { Button, Field, Input, PageHeader, Segmented, Select, Sheet, SubjectSelect, cx } from '../components/ui'
 
 const DAYS = [0, 1, 2, 3, 4]
@@ -14,6 +14,7 @@ export default function Timetable() {
   const nowMin = now.getHours() * 60 + now.getMinutes()
   const periods = usePeriods()
   const { subjects, byId } = useSubjects()
+  const plain = useSubjectColorMode() === 'schlicht'
   const lessons = useLiveQuery(() => db.lessons.toArray(), [], [] as Lesson[])
   const abRef = useSetting('abReference', mondayOf(today))
   const currentKind = weekKindFor(today, abRef)
@@ -52,12 +53,20 @@ export default function Timetable() {
         key={l.id}
         type="button"
         onClick={() => setEdit(l)}
-        className={cx('relative m-0.5 flex min-w-0 flex-col items-start overflow-hidden rounded-lg px-2 py-1.5 text-left text-white', isNow && 'ring-3 ring-brass ring-offset-2 ring-offset-surface')}
-        style={{ gridColumn: l.day + 2, gridRow: `${r0 + 1} / ${(r1 ?? r0) + 2}` /* +1: row 1 is the day header */, background: s?.color ?? '#64748b' }}
+        className={cx(
+          'relative m-0.5 flex min-w-0 flex-col items-start overflow-hidden rounded-lg px-2 py-1.5 text-left',
+          plain ? 'border-l-4 bg-sunken text-ink' : 'text-white',
+          isNow && 'ring-3 ring-brass ring-offset-2 ring-offset-surface',
+        )}
+        style={{
+          gridColumn: l.day + 2,
+          gridRow: `${r0 + 1} / ${(r1 ?? r0) + 2}` /* +1: row 1 is the day header */,
+          ...(plain ? { borderLeftColor: s?.color ?? 'var(--line)' } : { background: s?.color ?? '#64748b' }),
+        }}
       >
         <span className="w-full truncate text-[15px] leading-tight font-bold">{s?.short ?? '?'}</span>
-        {l.length > 1 && <span className="w-full truncate text-xs opacity-90">{s?.name}</span>}
-        {(l.room || s?.room) && <span className="mt-auto w-full truncate text-xs opacity-90">{l.room || s?.room}</span>}
+        {l.length > 1 && <span className={cx('w-full truncate text-xs', plain ? 'text-ink-2' : 'opacity-90')}>{s?.name}</span>}
+        {(l.room || s?.room) && <span className={cx('mt-auto w-full truncate text-xs', plain ? 'text-ink-2' : 'opacity-90')}>{l.room || s?.room}</span>}
         {l.week !== 'alle' && <span className="absolute top-1 right-1.5 text-[10px] font-bold opacity-90">{l.week}</span>}
       </button>
     )

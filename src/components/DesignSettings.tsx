@@ -1,7 +1,7 @@
 import { useRef, useState } from 'react'
 import { Check, ImagePlus, Trash2 } from 'lucide-react'
 import { setSetting } from '../db'
-import { DEFAULT_THEME, FONTS, PRESETS, type Background, type FontId, type PresetId, type ThemeSettings } from '../lib/theme'
+import { DEFAULT_THEME, FONTS, PRESETS, type Background, type FontId, type PresetId, type SubjectColorMode, type ThemeSettings } from '../lib/theme'
 import { deleteImage, saveImage, useImageUrl } from '../lib/images'
 import { useSetting } from '../lib/hooks'
 import { Button, Field, Input, Panel, Segmented, cx } from './ui'
@@ -133,6 +133,10 @@ export function DesignSettings() {
             ))}
           </div>
         </div>
+
+        <Field label="Fachfarben" hint="Gedämpft passt zu den warmen Themen. Schlicht zeigt im Stundenplan nur einen Farbstreifen.">
+          <Segmented<SubjectColorMode> className="w-full" value={design.subjectColors ?? 'gedaempft'} onChange={(v) => set({ subjectColors: v })} options={[{ value: 'gedaempft', label: 'Gedämpft' }, { value: 'schlicht', label: 'Schlicht' }, { value: 'kraeftig', label: 'Kräftig' }]} />
+        </Field>
 
         <div className="space-y-3">
           <Field label="Hintergrund">

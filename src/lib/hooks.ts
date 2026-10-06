@@ -2,9 +2,13 @@ import { useEffect, useMemo, useState } from 'react'
 import { useLiveQuery } from 'dexie-react-hooks'
 import { db, type Lesson, type Period, type Subject } from '../db'
 import { todayISO, weekdayIndex, weekKindFor } from './date'
+import { displaySubjectColor, type SubjectColorMode, type ThemeSettings } from './theme'
 
+/** Subjects with their colour adjusted to the chosen colour style (Einstellungen → Design). */
 export function useSubjects() {
-  const subjects = useLiveQuery(() => db.subjects.toArray(), [], undefined)
+  const mode = useSubjectColorMode()
+  const raw = useLiveQuery(() => db.subjects.toArray(), [], undefined)
+  const subjects = useMemo(() => raw?.map((s) => ({ ...s, color: displaySubjectColor(s.color, mode) })), [raw, mode])
   const byId = useMemo(() => {
     const m = new Map<number, Subject>()
     subjects?.forEach((s) => m.set(s.id!, s))
@@ -56,4 +60,9 @@ export function lessonSpan(lesson: Lesson, periods: Period[]) {
   const first = periods.find((p) => p.nr === lesson.period)
   const last = periods.find((p) => p.nr === lesson.period + lesson.length - 1) ?? first
   return { start: first?.start ?? '', end: last?.end ?? '' }
+}
+
+export function useSubjectColorMode(): SubjectColorMode {
+  const design = useSetting<ThemeSettings | null>('design', null)
+  return design?.subjectColors ?? 'gedaempft'
 }
