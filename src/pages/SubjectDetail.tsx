@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { Link, useNavigate, useParams } from 'react-router-dom'
 import { useLiveQuery } from 'dexie-react-hooks'
-import { AlertTriangle, ArrowLeft, Pencil, Plus, Trash2 } from 'lucide-react'
+import { AlertTriangle, ArrowLeft, ImagePlus, Pencil, Plus, Trash2 } from 'lucide-react'
 import { db, type Exam, type Grade, type Lesson, type Task } from '../db'
 import { DAY_SHORT, formatDate } from '../lib/date'
 import { formatAvg, gradeColor, gradeName, projectedGrade, runningAverages, weightSum, weightedAverage } from '../lib/grades'
@@ -11,7 +11,9 @@ import { GradeTrend, TrendLegend } from '../components/GradeTrend'
 import { Notenrechner } from '../components/Notenrechner'
 import { SubjectSheet, deleteSubject } from '../components/SubjectSheet'
 import { TaskRow, TaskSheet } from '../components/tasks'
-import { Button, Empty, GradeChip, IconButton, Panel, useConfirm } from '../components/ui'
+import { Button, Empty, GradeChip, IconButton, Panel, Sheet, useConfirm } from '../components/ui'
+import { ImagePicker } from '../components/DesignSettings'
+import { useImageUrl } from '../lib/images'
 import { ExamRow } from './Exams'
 
 export default function SubjectDetail() {
@@ -31,6 +33,8 @@ export default function SubjectDetail() {
   const [task, setTask] = useState<Task | null | undefined>(undefined)
   const [exam, setExam] = useState<Exam | null | undefined>(undefined)
   const [showDone, setShowDone] = useState(false)
+  const [coverOpen, setCoverOpen] = useState(false)
+  const cover = useImageUrl(subject?.coverId)
   const confirm = useConfirm()
 
   if (subject === undefined) return null
@@ -60,6 +64,12 @@ export default function SubjectDetail() {
         <ArrowLeft size={18} /> Zurück
       </button>
 
+      {cover && (
+        <div className="relative mb-5 overflow-hidden rounded-3xl">
+          <img src={cover} alt="" className="h-40 w-full object-cover sm:h-52" />
+          <div className="absolute inset-x-0 bottom-0 h-1.5" style={{ background: subject.color }} />
+        </div>
+      )}
       <header className="mb-6 flex flex-wrap items-start gap-4 border-l-8 pl-4" style={{ borderColor: subject.color }}>
         <div className="min-w-0 flex-1">
           <p className="font-semibold" style={{ color: subject.color }}>{subject.short}</p>
@@ -74,6 +84,7 @@ export default function SubjectDetail() {
           )}
         </div>
         <div className="flex items-center gap-1">
+          <IconButton label="Titelbild" onClick={() => setCoverOpen(true)}><ImagePlus size={19} /></IconButton>
           <IconButton label="Fach bearbeiten" onClick={() => setEditing(true)}><Pencil size={19} /></IconButton>
           <IconButton label="Fach löschen" onClick={remove}><Trash2 size={19} /></IconButton>
         </div>
@@ -162,6 +173,10 @@ export default function SubjectDetail() {
       <GradeSheet open={grade !== undefined} grade={grade} defaultSubjectId={subjectId} onClose={() => setGrade(undefined)} />
       <TaskSheet open={task !== undefined} task={task} defaultSubjectId={subjectId} onClose={() => setTask(undefined)} />
       <ExamSheet open={exam !== undefined} exam={exam} defaultSubjectId={subjectId} onClose={() => setExam(undefined)} />
+      <Sheet open={coverOpen} onClose={() => setCoverOpen(false)} title={`Titelbild für ${subject.short}`}>
+        <ImagePicker value={subject.coverId} onChange={(id) => db.subjects.update(subjectId, { coverId: id })} label="Titelbild" />
+        <p className="mt-3 text-sm text-ink-3">Zum Beispiel ein Foto von deiner Schaltung, deinem Heft oder was dich an das Fach erinnert.</p>
+      </Sheet>
       {confirm.element}
     </div>
   )

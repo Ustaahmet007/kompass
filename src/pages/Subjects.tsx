@@ -5,6 +5,7 @@ import { AlertTriangle, ChevronRight, Plus } from 'lucide-react'
 import { db, type Lesson } from '../db'
 import { weightSum } from '../lib/grades'
 import { useSubjects } from '../lib/hooks'
+import { useImageUrl } from '../lib/images'
 import { SubjectSheet } from '../components/SubjectSheet'
 import { Button, Empty, PageHeader, Panel } from '../components/ui'
 
@@ -29,7 +30,7 @@ export default function Subjects() {
               return (
                 <li key={s.id}>
                   <Link to={`/fach/${s.id}`} className="flex min-h-16 items-center gap-4 px-4 py-2.5 hover:bg-sunken">
-                    <span className="flex h-11 w-14 shrink-0 items-center justify-center rounded-lg text-sm font-bold text-white" style={{ background: s.color }}>{s.short}</span>
+                    <SubjectThumb coverId={s.coverId} color={s.color} short={s.short} />
                     <div className="min-w-0 flex-1">
                       <p className="truncate font-semibold">{s.name}</p>
                       <p className="flex flex-wrap items-center gap-x-2 text-sm text-ink-2">
@@ -50,5 +51,15 @@ export default function Subjects() {
       </Panel>
       <SubjectSheet open={adding} onClose={() => setAdding(false)} />
     </div>
+  )
+}
+
+function SubjectThumb({ coverId, color, short }: { coverId?: number | null; color: string; short: string }) {
+  const url = useImageUrl(coverId)
+  return (
+    <span className="relative flex h-11 w-14 shrink-0 items-center justify-center overflow-hidden rounded-lg text-sm font-bold text-white" style={{ background: color }}>
+      {url && <img src={url} alt="" className="absolute inset-0 size-full object-cover" />}
+      <span className={url ? 'relative rounded px-1 text-xs' : ''} style={url ? { background: color } : undefined}>{short}</span>
+    </span>
   )
 }

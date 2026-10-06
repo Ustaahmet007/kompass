@@ -19,8 +19,8 @@ export default defineConfig({
         short_name: 'Kompass',
         description: 'Stundenplan, Aufgaben, Noten und Prüfungen für die HTL.',
         lang: 'de-AT',
-        theme_color: '#13254a',
-        background_color: '#f3f6fa',
+        theme_color: '#2e2420',
+        background_color: '#f2ebe1',
         display: 'standalone',
         orientation: 'any',
         start_url: base,
@@ -32,19 +32,8 @@ export default defineConfig({
         ],
       },
       workbox: {
-        globPatterns: ['**/*.{js,css,html,svg,png,woff2}'],
+        globPatterns: ['**/*.{js,css,html,svg,png}', '**/*-latin-*.woff2'],
         navigateFallback: `${base}index.html`,
-        runtimeCaching: [
-          {
-            urlPattern: /^https:\/\/fonts\.(googleapis|gstatic)\.com\/.*/i,
-            handler: 'CacheFirst',
-            options: {
-              cacheName: 'google-fonts',
-              expiration: { maxEntries: 20, maxAgeSeconds: 60 * 60 * 24 * 365 },
-              cacheableResponse: { statuses: [0, 200] },
-            },
-          },
-        ],
       },
     }),
   ],

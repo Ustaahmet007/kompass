@@ -4,36 +4,28 @@
 @custom-variant dark (&:where([data-theme='dark'], [data-theme='dark'] *));
 
 :root {
-  --paper: #f3f6fa;
-  --surface: #ffffff;
-  --sunken: #e9eef5;
-  --ink: #13254a;
-  --ink-2: #4d5d7a;
-  --ink-3: #7d8aa3;
-  --line: #d6dfeb;
-  --grid: #e3e9f2;
-  --brass: #9a6b14;
-  --brass-soft: #f6ead0;
-  --danger: #c0352b;
-  --danger-soft: #fbe5e2;
-  --ok: #1f8a4c;
+  /* Defaults = "Kaminabend" light; the chosen theme is applied from JS (src/lib/theme.ts). */
+  --paper: #f2ebe1;
+  --surface: #fffaf3;
+  --sunken: #ece3d6;
+  --ink: #2e2420;
+  --ink-2: #65554b;
+  --ink-3: #9a897c;
+  --line: #e2d6c6;
+  --grid: #e9e0d3;
+  --brass: #a35d16;
+  --brass-soft: #f6e3c8;
+  --danger: #b93a2e;
+  --danger-soft: #f9e1dc;
+  --ok: #2f8549;
+  --display-font: 'Fraunces Variable', Georgia, serif;
   color-scheme: light;
 }
 
 :root[data-theme='dark'] {
-  --paper: #0b1322;
-  --surface: #131e35;
-  --sunken: #0f182b;
-  --ink: #e4eaf4;
-  --ink-2: #a3b1c9;
-  --ink-3: #6f7f9b;
-  --line: #24345a;
-  --grid: #131d33;
-  --brass: #dcae55;
-  --brass-soft: #33290f;
   --danger: #f0786d;
   --danger-soft: #3a1a1a;
-  --ok: #4cc27f;
+  --ok: #5cc285;
   color-scheme: dark;
 }
 
@@ -50,7 +42,7 @@
   --color-danger: var(--danger);
   --color-danger-soft: var(--danger-soft);
   --color-ok: var(--ok);
-  --font-sans: 'Archivo', ui-sans-serif, system-ui, -apple-system, sans-serif;
+  --font-sans: 'Archivo Variable', ui-sans-serif, system-ui, -apple-system, sans-serif;
 }
 
 html,
@@ -63,22 +55,42 @@ body {
   overscroll-behavior-y: none;
 }
 
-body {
-  /* Millimeterpapier: a 5 mm and 1 cm grid, barely there */
+/* Optional Millimeterpapier background */
+:root[data-bg='grid'] body {
   background-image:
     linear-gradient(var(--grid) 1px, transparent 1px),
     linear-gradient(90deg, var(--grid) 1px, transparent 1px);
   background-size: 28px 28px;
   background-attachment: fixed;
+}
+body {
   min-height: 100dvh;
 }
+:root[data-bg='image'] body {
+  background-color: transparent;
+}
+:root[data-bg='image'] .panel {
+  -webkit-backdrop-filter: blur(14px);
+  backdrop-filter: blur(14px);
+}
 
-/* Headings use Archivo's wide cut — the one typographic flourish in the app. */
+/* Headings: the one typographic flourish. Font is user-selectable (Einstellungen → Design). */
 .display {
-  font-stretch: 125%;
-  font-weight: 700;
+  font-family: var(--display-font);
+  font-weight: 600;
   letter-spacing: -0.01em;
-  line-height: 1.05;
+  line-height: 1.08;
+  font-variation-settings: 'SOFT' 100, 'opsz' 72;
+}
+:root[data-font='archivo'] .display {
+  font-weight: 700;
+  font-stretch: 125%;
+  font-variation-settings: normal;
+}
+:root[data-font='nunito'] .display {
+  font-weight: 800;
+  letter-spacing: -0.005em;
+  font-variation-settings: normal;
 }
 
 .tabular {

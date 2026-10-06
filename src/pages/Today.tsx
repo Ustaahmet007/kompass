@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { useImageUrl } from '../lib/images'
 import { Link } from 'react-router-dom'
 import { useLiveQuery } from 'dexie-react-hooks'
 import { Plus } from 'lucide-react'
@@ -58,13 +59,16 @@ export default function Today() {
 
   return (
     <div>
-      <header className="mb-7">
-        <p className="text-ink-2">
-          {hasAB ? `Woche ${weekKind}` : 'Diese Woche'}
-          {overdue > 0 && <span className="font-semibold text-danger"> · {overdue} überfällig</span>}
-        </p>
-        <h1 className="display mt-1 text-4xl sm:text-5xl">{formatLong(today)}</h1>
-      </header>
+      <TodayHeader
+        date={formatLong(today)}
+        hour={now.getHours()}
+        meta={
+          <>
+            {hasAB ? `Woche ${weekKind}` : null}
+            {overdue > 0 && <span className="font-semibold text-danger">{hasAB ? ' · ' : ''}{overdue} überfällig</span>}
+          </>
+        }
+      />
 
       <div className="grid gap-5 lg:grid-cols-[minmax(0,1.25fr)_minmax(0,1fr)]">
         <Panel
@@ -215,5 +219,39 @@ function NowMarker({ label }: { label: string }) {
       <span className="h-px flex-1 bg-brass" />
       <span className="text-xs font-semibold text-brass">{label}</span>
     </div>
+  )
+}
+
+function greeting(hour: number) {
+  if (hour >= 5 && hour < 11) return 'Guten Morgen'
+  if (hour >= 11 && hour < 18) return 'Servus'
+  if (hour >= 18 && hour < 23) return 'Guten Abend'
+  return 'Noch wach'
+}
+
+function TodayHeader({ date, hour, meta }: { date: string; hour: number; meta: React.ReactNode }) {
+  const name = useSetting('userName', '')
+  const coverId = useSetting<number | null>('homeCoverId', null)
+  const cover = useImageUrl(coverId)
+  const hello = `${greeting(hour)}${name ? `, ${name}` : ''}${hour >= 23 || hour < 5 ? '?' : ''}`
+  if (cover) {
+    return (
+      <header className="relative mb-7 overflow-hidden rounded-3xl">
+        <img src={cover} alt="" className="h-52 w-full object-cover sm:h-64" />
+        <div className="absolute inset-0 bg-gradient-to-t from-black/65 via-black/20 to-transparent" />
+        <div className="absolute inset-x-0 bottom-0 px-5 pb-4 text-white sm:px-7 sm:pb-6">
+          <p className="text-lg font-medium text-white/90">{hello}</p>
+          <h1 className="display text-4xl drop-shadow sm:text-5xl">{date}</h1>
+          <p className="mt-1 text-sm text-white/85 [&_.text-danger]:text-red-200">{meta}</p>
+        </div>
+      </header>
+    )
+  }
+  return (
+    <header className="mb-7">
+      <p className="text-lg text-ink-2">{hello}</p>
+      <h1 className="display mt-0.5 text-4xl sm:text-5xl">{date}</h1>
+      <p className="mt-1 text-sm text-ink-2">{meta}</p>
+    </header>
   )
 }

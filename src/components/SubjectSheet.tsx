@@ -6,11 +6,13 @@ import { Button, Field, IconButton, Input, Sheet, cx } from './ui'
 export const SUBJECT_COLORS = ['#c2410c', '#ca8a04', '#65a30d', '#0d9488', '#0284c7', '#2563eb', '#4f46e5', '#7c3aed', '#be185d', '#dc2626', '#57534e', '#0f766e']
 
 export async function deleteSubject(id: number) {
-  await db.transaction('rw', [db.subjects, db.lessons, db.tasks, db.grades, db.exams], async () => {
+  await db.transaction('rw', [db.subjects, db.lessons, db.tasks, db.grades, db.exams, db.images], async () => {
     await db.lessons.where('subjectId').equals(id).delete()
     await db.grades.where('subjectId').equals(id).delete()
     await db.exams.where('subjectId').equals(id).delete()
     await db.tasks.where('subjectId').equals(id).modify({ subjectId: null })
+    const s = await db.subjects.get(id)
+    if (s?.coverId) await db.images.delete(s.coverId)
     await db.subjects.delete(id)
   })
 }

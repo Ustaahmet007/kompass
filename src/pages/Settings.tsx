@@ -8,10 +8,10 @@ import { deleteDemo, hasDemo, seedDemo } from '../lib/seed'
 import { usePeriods, useSetting, useToday } from '../lib/hooks'
 import { Button, IconButton, Input, PageHeader, Panel, Segmented, useConfirm } from '../components/ui'
 import { KiSettings } from '../components/KiSettings'
+import { DesignSettings } from '../components/DesignSettings'
 
 export default function SettingsPage() {
   const today = useToday()
-  const theme = useSetting<'system' | 'light' | 'dark'>('theme', 'system')
   const abRef = useSetting('abReference', mondayOf(today))
   const lastExport = useSetting<number | null>('lastExport', null)
   const periods = usePeriods()
@@ -63,11 +63,7 @@ export default function SettingsPage() {
       <div className="grid gap-5 lg:grid-cols-2">
         <div className="space-y-5">
           <KiSettings />
-          <Panel title="Darstellung">
-            <div className="px-4 pt-1 pb-4">
-              <Segmented className="w-full" value={theme} onChange={(v) => setSetting('theme', v)} options={[{ value: 'system', label: 'Wie iPad' }, { value: 'light', label: 'Hell' }, { value: 'dark', label: 'Dunkel' }]} />
-            </div>
-          </Panel>
+          <DesignSettings />
 
           <Panel title="A/B-Wochen">
             <div className="space-y-2 px-4 pt-1 pb-4">

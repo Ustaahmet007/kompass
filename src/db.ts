@@ -13,6 +13,7 @@ export interface Subject {
   teacher?: string
   room?: string
   categories: Category[]
+  coverId?: number | null
   demo?: boolean
 }
 
@@ -131,6 +132,14 @@ export interface ChatMessage {
   actions?: { label: string; undo: { table: 'tasks' | 'exams' | 'grades'; id: number; op: 'delete' | 'restore'; before?: unknown } }[]
 }
 
+export interface StoredImage {
+  id?: number
+  blob: Blob
+  width: number
+  height: number
+  createdAt: number
+}
+
 export interface Usage {
   month: string // YYYY-MM
   costUsd: number
@@ -152,6 +161,7 @@ export const db = new Dexie('kompass') as Dexie & {
   plans: EntityTable<StudyPlan, 'id'>
   chat: EntityTable<ChatMessage, 'id'>
   usage: EntityTable<Usage, 'month'>
+  images: EntityTable<StoredImage, 'id'>
 }
 
 db.version(1).stores({
@@ -170,6 +180,10 @@ db.version(2).stores({
   plans: '++id, subjectId, deadline',
   chat: '++id, ts',
   usage: 'month',
+})
+
+db.version(3).stores({
+  images: '++id',
 })
 
 export const DEFAULT_CATEGORIES: Category[] = [

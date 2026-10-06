@@ -1,7 +1,8 @@
 import { db } from '../db'
 import { todayISO } from './date'
+import { blobToDataUrl, dataUrlToBlob } from './images'
 
-const TABLES = ['subjects', 'periods', 'lessons', 'tasks', 'grades', 'exams', 'settings', 'notes', 'sessions', 'plans', 'chat', 'usage'] as const
+const TABLES = ['subjects', 'periods', 'lessons', 'tasks', 'grades', 'exams', 'settings', 'notes', 'sessions', 'plans', 'chat', 'usage', 'images'] as const
 
 /** Never leaves the device: not exported, and kept when a backup is restored. */
 const PRIVATE_SETTINGS = ['apiKey']
@@ -10,6 +11,8 @@ export async function exportData() {
   const data: Record<string, unknown[]> = {}
   for (const t of TABLES) data[t] = await db.table(t).toArray()
   data.settings = (data.settings as { key: string }[]).filter((r) => !PRIVATE_SETTINGS.includes(r.key))
+  // Pictures travel as data URLs inside the JSON.
+  data.images = await Promise.all((data.images as { blob: Blob }[]).map(async (img) => ({ ...img, blob: await blobToDataUrl(img.blob) })))
   const payload = { app: 'kompass', version: 1, exportedAt: new Date().toISOString(), data }
   const blob = new Blob([JSON.stringify(payload, null, 2)], { type: 'application/json' })
   const fileName = `kompass-backup-${todayISO()}.json`
@@ -44,6 +47,11 @@ export async function importData(file: File) {
   }
   if (parsed.app !== 'kompass' || !parsed.data) throw new Error('Das ist keine Kompass-Sicherung.')
   const data = parsed.data
+  if (Array.isArray(data.images)) {
+    data.images = await Promise.all(
+      (data.images as { blob: unknown }[]).map(async (img) => ({ ...img, blob: typeof img.blob === 'string' ? await dataUrlToBlob(img.blob) : img.blob })),
+    )
+  }
   const keep = await db.settings.bulkGet(PRIVATE_SETTINGS)
   await db.transaction('rw', TABLES.map((t) => db.table(t)), async () => {
     for (const t of TABLES) {

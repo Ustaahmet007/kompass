@@ -21,7 +21,7 @@ export function PageHeader({ title, subtitle, action }: { title: string; subtitl
 
 export function Panel({ children, className, title, action }: { children: ReactNode; className?: string; title?: ReactNode; action?: ReactNode }) {
   return (
-    <section className={cx('rounded-xl border border-line bg-surface', className)}>
+    <section className={cx('panel rounded-2xl border border-line bg-surface shadow-[0_1px_3px_rgba(40,25,10,0.05)]', className)}>
       {title && (
         <div className="flex items-center justify-between gap-2 px-4 pt-3.5 pb-1">
           <h2 className="font-semibold text-ink-2">{title}</h2>

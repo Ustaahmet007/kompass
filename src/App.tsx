@@ -4,6 +4,8 @@ import { BookOpen, CalendarDays, ClipboardList, Compass, Flag, GraduationCap, La
 import { useDueCount } from './components/tasks'
 import { Sheet, cx } from './components/ui'
 import { useSetting } from './lib/hooks'
+import { applyTheme, DEFAULT_THEME, type ThemeSettings } from './lib/theme'
+import { useImageUrl } from './lib/images'
 import Today from './pages/Today'
 import Timetable from './pages/Timetable'
 import Tasks from './pages/Tasks'
@@ -47,14 +49,27 @@ function useMedia(query: string) {
   return match
 }
 
-function useTheme() {
-  const theme = useSetting<'system' | 'light' | 'dark'>('theme', 'system')
+function useDesign() {
+  const legacyMode = useSetting<'system' | 'light' | 'dark'>('theme', 'system')
+  const design = useSetting<ThemeSettings | null>('design', null) ?? { ...DEFAULT_THEME, mode: legacyMode }
   const systemDark = useMedia('(prefers-color-scheme: dark)')
   useEffect(() => {
-    const dark = theme === 'dark' || (theme === 'system' && systemDark)
-    document.documentElement.dataset.theme = dark ? 'dark' : 'light'
-    document.querySelector('meta[name="theme-color"]')?.setAttribute('content', dark ? '#0b1322' : '#13254a')
-  }, [theme, systemDark])
+    applyTheme(design, systemDark)
+  }, [design, systemDark])
+  return design
+}
+
+/** Optional photo behind the whole app, softened so text stays readable. */
+function BackgroundImage({ design }: { design: ThemeSettings }) {
+  const bgId = useSetting<number | null>('bgImageId', null)
+  const url = useImageUrl(design.background === 'image' ? bgId : null)
+  if (design.background !== 'image' || !url) return null
+  return (
+    <div className="pointer-events-none fixed inset-0 -z-10" aria-hidden>
+      <img src={url} alt="" className="size-full object-cover" style={{ filter: design.bgBlur ? `blur(${design.bgBlur}px)` : undefined, transform: design.bgBlur ? 'scale(1.06)' : undefined }} />
+      <div className="absolute inset-0" style={{ background: 'var(--paper)', opacity: design.bgDim / 100 }} />
+    </div>
+  )
 }
 
 function Badge({ n }: { n: number }) {
@@ -65,7 +80,7 @@ function Badge({ n }: { n: number }) {
 }
 
 function Shell() {
-  useTheme()
+  const design = useDesign()
   const due = useDueCount()
   // Sidebar when there is room for it: iPad landscape, or any wide window. Split View and portrait get the tab bar.
   const wide = useMedia('(min-width: 1000px), (min-width: 860px) and (orientation: landscape)')
@@ -118,6 +133,7 @@ function Shell() {
   if (wide) {
     return (
       <div className="flex min-h-dvh">
+        <BackgroundImage design={design} />
         <aside className="safe-top sticky top-0 h-dvh w-60 shrink-0 border-r border-line bg-surface/90 backdrop-blur"><div className="flex h-full flex-col px-3 py-5">
           <div className="mb-6 flex items-center gap-2.5 px-3">
             <Compass size={26} className="text-brass" />
@@ -152,6 +168,7 @@ function Shell() {
   const moreActive = MORE_ITEMS.some((m) => loc.pathname.startsWith(m.to)) || loc.pathname.startsWith('/fach/')
   return (
     <div className="min-h-dvh">
+      <BackgroundImage design={design} />
       <main className="safe-top"><div className="px-4 pt-6 pb-28 sm:px-6">{routes}</div></main>
       {fab}
       <nav className="safe-bottom fixed inset-x-0 bottom-0 z-40 border-t border-line bg-surface/95 backdrop-blur">
