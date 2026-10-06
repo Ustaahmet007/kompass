@@ -19,7 +19,7 @@ export const syncConfigured = !!(URL_ && ANON)
 export const supabase: SupabaseClient | null = syncConfigured ? createClient(URL_!, ANON!, { auth: { persistSession: true, autoRefreshToken: true } }) : null
 
 /** Tables that travel between devices. */
-export const SYNCED = ['subjects', 'periods', 'lessons', 'tasks', 'grades', 'exams', 'settings', 'notes', 'sessions', 'plans', 'chat', 'usage', 'images'] as const
+export const SYNCED = ['subjects', 'periods', 'lessons', 'tasks', 'grades', 'exams', 'settings', 'notes', 'sessions', 'plans', 'chat', 'usage', 'images', 'shifts', 'files'] as const
 type SyncedTable = (typeof SYNCED)[number]
 /** Device-specific settings that stay on each device. */
 const LOCAL_SETTINGS = new Set(['apiKey', 'voice', 'timer', 'lastExport', 'seeded', 'elevenKey', 'elevenVoice', 'elevenModel', 'voiceEngine'])
@@ -110,12 +110,42 @@ export function onSyncState(l: (s: SyncState) => void) {
 }
 
 // ---- serialisation ------------------------------------------------------------------------
-async function toRemote(tbl: SyncedTable, row: Record<string, unknown>) {
+// Attached files (PDFs) are too big for a record: the bytes go to Supabase Storage
+// (bucket "files", folder per user), the record only carries the name and size.
+async function toRemote(tbl: SyncedTable, row: Record<string, unknown>, userId: string) {
   if (tbl === 'images' && row.blob instanceof Blob) return { ...row, blob: await blobToDataUrl(row.blob) }
+  if (tbl === 'files') {
+    if (row.blob instanceof Blob) {
+      const { error } = await supabase!.storage.from('files').upload(`${userId}/${row.id}`, row.blob, { upsert: true, contentType: String(row.type || 'application/octet-stream') })
+      if (error) throw new Error(`Datei-Upload: ${error.message}`)
+    }
+    const { blob: _blob, ...meta } = row
+    return meta
+  }
   return row
 }
 async function fromRemote(tbl: SyncedTable, data: Record<string, unknown>) {
   if (tbl === 'images' && typeof data.blob === 'string') return { ...data, blob: await dataUrlToBlob(data.blob) }
+  if (tbl === 'files') {
+    const local = await db.files.get(Number(data.id))
+    return { ...data, blob: local?.blob ?? null }
+  }
+  return data
+}
+
+/** Downloads the bytes of a synced file that only exists in the cloud so far. */
+export async function fetchFileBlob(id: number): Promise<Blob | null> {
+  const local = await db.files.get(id)
+  if (local?.blob) return local.blob
+  if (!supabase) return null
+  const { data: auth } = await supabase.auth.getSession()
+  if (!auth.session) return null
+  const { data, error } = await supabase.storage.from('files').download(`${auth.session.user.id}/${id}`)
+  if (error || !data) throw new Error('Die Datei konnte nicht geladen werden.')
+  await db.transaction('rw', db.files, async (tx) => {
+    ;(tx as unknown as { __remote: boolean }).__remote = true
+    await db.files.update(id, { blob: data })
+  })
   return data
 }
 const parseId = (tbl: SyncedTable, id: string) => (STRING_KEYS.has(tbl) ? id : Number(id))
@@ -132,7 +162,8 @@ async function push(userId: string) {
       const [tbl, id] = key.split('\u0001') as [SyncedTable, string]
       if (!SYNCED.includes(tbl)) continue
       const local = op === 'put' ? await db.table(tbl).get(parseId(tbl, id)) : undefined
-      rows.push(local ? { user_id: userId, tbl, id, data: await toRemote(tbl, local), deleted: false } : { user_id: userId, tbl, id, data: null, deleted: true })
+      if (!local && tbl === 'files') await supabase!.storage.from('files').remove([`${userId}/${id}`])
+      rows.push(local ? { user_id: userId, tbl, id, data: await toRemote(tbl, local, userId), deleted: false } : { user_id: userId, tbl, id, data: null, deleted: true })
     }
     const { error } = await supabase!.from('records').upsert(rows, { onConflict: 'user_id,tbl,id' })
     if (error) throw new Error(error.message)

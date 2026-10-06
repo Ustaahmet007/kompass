@@ -4,6 +4,7 @@ import { Pause, Play, RotateCcw, SkipForward, Square } from 'lucide-react'
 import { db, setSetting, type StudySession } from '../db'
 import { DAY_SHORT, addDays, mondayOf, todayISO } from '../lib/date'
 import { useNow, useSetting, useSubjects, useToday } from '../lib/hooks'
+import { DEFAULT_MUSIC, MusicPanel, musicPause, musicPlay, type MusicSettings } from '../components/Music'
 import { Button, Field, PageHeader, Panel, Segmented, SubjectSelect, SubjectTag, cx } from '../components/ui'
 
 interface TimerState {
@@ -49,6 +50,8 @@ export default function Timer() {
   const today = useToday()
   const { subjects, byId } = useSubjects()
   const state = useSetting<TimerState>('timer', DEFAULT)
+  const music = useSetting<MusicSettings>('music', DEFAULT_MUSIC)
+  const hasMusic = !!music.current
   const sessions = useLiveQuery(() => db.sessions.where('date').aboveOrEqual(addDays(today, -30)).toArray(), [today], [] as StudySession[])
   // endsAt of the phase already handled — the stored state can lag a tick behind.
   const handled = useRef<number | null>(null)
@@ -63,6 +66,7 @@ export default function Timer() {
     handled.current = state.endsAt
     ;(async () => {
       if (state.phase === 'focus') {
+        if (hasMusic && music.pauseOnBreak) musicPause()
         await db.sessions.add({ subjectId: state.subjectId, date: todayISO(), minutes: state.focusMin, endedAt: state.endsAt! })
         await setSetting('timer', { ...state, phase: 'pause', running: false, endsAt: null, remainingMs: state.breakMin * 60_000, focusStartedAt: null })
       } else {
@@ -70,7 +74,7 @@ export default function Timer() {
       }
       if (document.visibilityState === 'visible') chime()
     })()
-  }, [now, state])
+  }, [now, state, hasMusic, music.pauseOnBreak])
 
   useEffect(() => {
     document.title = state.running ? `${fmt(remaining)} · ${state.phase === 'focus' ? 'Fokus' : 'Pause'}` : 'Kompass'
@@ -79,11 +83,20 @@ export default function Timer() {
     }
   }, [remaining, state.running, state.phase])
 
-  const start = () => set({ running: true, endsAt: Date.now() + remaining, focusStartedAt: state.phase === 'focus' ? state.focusStartedAt ?? Date.now() : null })
-  const pause = () => set({ running: false, endsAt: null, remainingMs: remaining })
+  const start = () => {
+    // Started from the tap, so the browser lets the player begin.
+    if (hasMusic && music.autoplay && (state.phase === 'focus' || !music.pauseOnBreak)) musicPlay()
+    return startTimer()
+  }
+  const startTimer = () => set({ running: true, endsAt: Date.now() + remaining, focusStartedAt: state.phase === 'focus' ? state.focusStartedAt ?? Date.now() : null })
+  const pause = () => {
+    if (hasMusic && music.autoplay) musicPause()
+    return set({ running: false, endsAt: null, remainingMs: remaining })
+  }
   const reset = () => set({ running: false, endsAt: null, remainingMs: total, focusStartedAt: null })
   /** Stop a focus block early and keep the minutes already done. */
   const stopEarly = async () => {
+    if (hasMusic && music.pauseOnBreak) musicPause()
     const doneMin = Math.round((total - remaining) / 60_000)
     if (state.phase === 'focus' && doneMin >= 1) {
       await db.sessions.add({ subjectId: state.subjectId, date: todayISO(), minutes: doneMin, endedAt: Date.now() })
@@ -153,6 +166,9 @@ export default function Timer() {
         </Panel>
 
         <div className="space-y-5">
+          <Panel title="Musik">
+            <MusicPanel />
+          </Panel>
           <Panel title={<>Diese Woche <span className="font-normal text-ink-3">· {hm(weekMin)}</span></>}>
             <div className="flex h-44 items-end gap-2 px-4 pt-2 pb-3">
               {week.map((w, i) => (

@@ -41,6 +41,7 @@ export default defineConfig({
         clientsClaim: true,
         globPatterns: ['**/*.{js,css,html,svg,png}', '**/*-latin-*.woff2'],
         navigateFallback: `${base}index.html`,
+        importScripts: ['push-sw.js'],
       },
     }),
   ],

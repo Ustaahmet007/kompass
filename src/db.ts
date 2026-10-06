@@ -49,6 +49,8 @@ export interface Task {
   priority: Priority
   status: TaskStatus
   notes?: string
+  /** Push reminder, local date-time YYYY-MM-DDTHH:MM. */
+  remindAt?: string | null
   createdAt: number
   doneAt?: number | null
   demo?: boolean
@@ -80,11 +82,17 @@ export interface Setting {
   value: unknown
 }
 
+export interface Attachment {
+  kind: 'image' | 'file'
+  id: number
+}
+
 export interface Note {
   id?: number
   subjectId?: number | null
   title: string
   body: string
+  attachments?: Attachment[]
   createdAt: number
   updatedAt: number
 }
@@ -129,7 +137,7 @@ export interface ChatMessage {
   text: string
   ts: number
   /** Changes the assistant made in this turn, so they can be undone. */
-  actions?: { label: string; undo: { table: 'tasks' | 'exams' | 'grades'; id: number; op: 'delete' | 'restore'; before?: unknown } }[]
+  actions?: { label: string; undo: { table: 'tasks' | 'exams' | 'grades' | 'shifts'; id: number; op: 'delete' | 'restore'; before?: unknown } }[]
 }
 
 export interface StoredImage {
@@ -142,6 +150,26 @@ export interface StoredImage {
   focusX?: number
   focusY?: number
   zoom?: number
+}
+
+/** A work shift (e.g. Bäckerei). */
+export interface Shift {
+  id?: number
+  date: string // YYYY-MM-DD
+  start: string // HH:MM
+  end: string // HH:MM
+  label: string
+  note?: string
+}
+
+/** A PDF or other file attached to a note. The blob may be missing until downloaded from the cloud. */
+export interface StoredFile {
+  id?: number
+  name: string
+  type: string
+  size: number
+  blob?: Blob | null
+  createdAt: number
 }
 
 export interface Usage {
@@ -166,6 +194,8 @@ export const db = new Dexie('kompass') as Dexie & {
   chat: EntityTable<ChatMessage, 'id'>
   usage: EntityTable<Usage, 'month'>
   images: EntityTable<StoredImage, 'id'>
+  shifts: EntityTable<Shift, 'id'>
+  files: EntityTable<StoredFile, 'id'>
 }
 
 db.version(1).stores({
@@ -188,6 +218,11 @@ db.version(2).stores({
 
 db.version(3).stores({
   images: '++id',
+})
+
+db.version(4).stores({
+  shifts: '++id, date',
+  files: '++id',
 })
 
 export const DEFAULT_CATEGORIES: Category[] = [

@@ -2,7 +2,7 @@ import { db } from '../db'
 import { todayISO } from './date'
 import { blobToDataUrl, dataUrlToBlob } from './images'
 
-const TABLES = ['subjects', 'periods', 'lessons', 'tasks', 'grades', 'exams', 'settings', 'notes', 'sessions', 'plans', 'chat', 'usage', 'images'] as const
+const TABLES = ['subjects', 'periods', 'lessons', 'tasks', 'grades', 'exams', 'settings', 'notes', 'sessions', 'plans', 'chat', 'usage', 'images', 'shifts', 'files'] as const
 
 /** Never leaves the device: not exported, and kept when a backup is restored. */
 const PRIVATE_SETTINGS = ['apiKey', 'elevenKey']
@@ -13,6 +13,7 @@ export async function exportData() {
   data.settings = (data.settings as { key: string }[]).filter((r) => !PRIVATE_SETTINGS.includes(r.key))
   // Pictures travel as data URLs inside the JSON.
   data.images = await Promise.all((data.images as { blob: Blob }[]).map(async (img) => ({ ...img, blob: await blobToDataUrl(img.blob) })))
+  data.files = await Promise.all((data.files as { blob?: Blob | null }[]).map(async (f) => ({ ...f, blob: f.blob ? await blobToDataUrl(f.blob) : null })))
   const payload = { app: 'kompass', version: 1, exportedAt: new Date().toISOString(), data }
   const blob = new Blob([JSON.stringify(payload, null, 2)], { type: 'application/json' })
   const fileName = `kompass-backup-${todayISO()}.json`
@@ -50,6 +51,11 @@ export async function importData(file: File) {
   if (Array.isArray(data.images)) {
     data.images = await Promise.all(
       (data.images as { blob: unknown }[]).map(async (img) => ({ ...img, blob: typeof img.blob === 'string' ? await dataUrlToBlob(img.blob) : img.blob })),
+    )
+  }
+  if (Array.isArray(data.files)) {
+    data.files = await Promise.all(
+      (data.files as { blob: unknown }[]).map(async (f) => ({ ...f, blob: typeof f.blob === 'string' ? await dataUrlToBlob(f.blob) : null })),
     )
   }
   const keep = await db.settings.bulkGet(PRIVATE_SETTINGS)

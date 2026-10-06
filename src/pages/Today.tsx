@@ -2,10 +2,11 @@ import { useState } from 'react'
 import { useImageUrl } from '../lib/images'
 import { FramedImage } from '../components/Picture'
 import { BriefingButton, BriefingCard, useBriefing } from '../components/BriefingButton'
+import { ShiftRow, ShiftSheet } from '../components/shifts'
 import { Link } from 'react-router-dom'
 import { useLiveQuery } from 'dexie-react-hooks'
 import { Plus } from 'lucide-react'
-import { db, type Lesson, type StudyPlan, type Task } from '../db'
+import { db, type Lesson, type Shift, type StudyPlan, type Task } from '../db'
 import { addDays, daysBetween, formatDate, formatLong, minutesOf, mondayOf, weekKindFor, weekdayIndex, DAY_NAMES } from '../lib/date'
 import { lessonSpan, lessonsForDate, useNow, usePeriods, useSetting, useSubjects, useToday } from '../lib/hooks'
 import { TaskRow, TaskSheet } from '../components/tasks'
@@ -22,6 +23,9 @@ export default function Today() {
   const tasks = useLiveQuery(() => db.tasks.toArray(), [], [] as Task[])
   const exams = useLiveQuery(() => db.exams.where('date').aboveOrEqual(today).sortBy('date'), [today], [])
   const plans = useLiveQuery(() => db.plans.where('deadline').aboveOrEqual(today).toArray(), [today], [] as StudyPlan[])
+  const shifts = useLiveQuery(() => db.shifts.where('date').between(today, addDays(today, 7), true, true).sortBy('date'), [today], [] as Shift[])
+  const upcomingShifts = shifts.slice(0, 3)
+  const [editShift, setEditShift] = useState<Shift | null | undefined>(undefined)
   const [edit, setEdit] = useState<Task | null | undefined>(undefined)
   const confirm = useConfirm()
 
@@ -85,6 +89,11 @@ export default function Today() {
         </Panel>
 
         <div className="flex flex-col gap-5">
+          {upcomingShifts.length > 0 && (
+            <Panel title="Arbeit" action={<Link to="/kalender" className="min-h-11 content-center px-1 text-sm font-medium text-brass">Kalender</Link>}>
+              <div className="pb-1">{upcomingShifts.map((x) => <ShiftRow key={x.id} shift={x} onOpen={setEditShift} showDate />)}</div>
+            </Panel>
+          )}
           {nextExam && nextExamSubject ? (
             <Link to="/pruefungen" className="block rounded-xl border-2 border-brass bg-brass-soft px-5 py-4 transition-transform active:scale-[0.99]">
               <p className="text-sm font-semibold text-brass">Nächste {nextExam.kind}</p>
@@ -151,6 +160,7 @@ export default function Today() {
       </div>
 
       <TaskSheet open={edit !== undefined} task={edit} onClose={() => setEdit(undefined)} />
+      <ShiftSheet open={editShift !== undefined} shift={editShift} onClose={() => setEditShift(undefined)} />
       {confirm.element}
     </div>
   )

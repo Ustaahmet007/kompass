@@ -1,7 +1,8 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { Link, useNavigate, useParams } from 'react-router-dom'
 import { useLiveQuery } from 'dexie-react-hooks'
-import { ArrowLeft, Plus, Search, Trash2 } from 'lucide-react'
+import { ArrowLeft, Paperclip, Plus, Search, Trash2 } from 'lucide-react'
+import { NoteAttachments, deleteAttachments } from '../components/attachments'
 import { db, type Note } from '../db'
 import { useSubjects } from '../lib/hooks'
 import { Button, Empty, IconButton, Input, PageHeader, Panel, Select, SubjectSelect, SubjectTag, cx, useConfirm } from '../components/ui'
@@ -49,6 +50,7 @@ export default function Notes() {
                 <div className="flex items-center gap-2">
                   <SubjectTag subject={byId.get(n.subjectId ?? -1)} />
                   <span className="truncate font-semibold">{n.title || 'Ohne Titel'}</span>
+                  {!!n.attachments?.length && <span className="ml-auto flex shrink-0 items-center gap-0.5 text-xs text-ink-3"><Paperclip size={13} />{n.attachments.length}</span>}
                 </div>
                 <p className="mt-0.5 line-clamp-2 text-sm text-ink-2">{snippet(n.body, q) || <span className="text-ink-3">Leer</span>}</p>
                 <p className="mt-1 text-xs text-ink-3">{new Date(n.updatedAt).toLocaleDateString('de-AT', { day: 'numeric', month: 'short' })}</p>
@@ -133,6 +135,7 @@ function NoteEditor({ id, subjects, onClose }: { id: number; subjects: ReturnTyp
   const remove = async () => {
     if (await confirm.ask(`„${draft.title || 'Ohne Titel'}" wird gelöscht.`)) {
       window.clearTimeout(timer.current)
+      await deleteAttachments(note.attachments)
       await db.notes.delete(id)
       onClose()
     }
@@ -141,7 +144,7 @@ function NoteEditor({ id, subjects, onClose }: { id: number; subjects: ReturnTyp
     window.clearTimeout(timer.current)
     await save(draft)
     // Throw away notes that were opened but never written in.
-    if (!draft.title.trim() && !draft.body.trim()) await db.notes.delete(id)
+    if (!draft.title.trim() && !draft.body.trim() && !(await db.notes.get(id))?.attachments?.length) await db.notes.delete(id)
     onClose()
   }
 
@@ -172,6 +175,7 @@ function NoteEditor({ id, subjects, onClose }: { id: number; subjects: ReturnTyp
           aria-label="Text"
         />
       </div>
+      <NoteAttachments noteId={id} attachments={note.attachments ?? []} />
       {confirm.element}
     </Panel>
   )

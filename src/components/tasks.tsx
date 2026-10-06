@@ -122,11 +122,12 @@ function TaskForm({ onClose, task, defaultSubjectId, defaultDue }: { onClose: ()
   const [priority, setPriority] = useState<Priority>(task?.priority ?? 2)
   const [status, setStatus] = useState<TaskStatus>(task?.status ?? 'offen')
   const [notes, setNotes] = useState(task?.notes ?? '')
+  const [remindAt, setRemindAt] = useState(task?.remindAt ?? '')
 
   const save = async () => {
     if (!title.trim()) return
     const data = {
-      title: title.trim(), subjectId, due: due || null, priority, status, notes: notes.trim() || undefined,
+      title: title.trim(), subjectId, due: due || null, priority, status, notes: notes.trim() || undefined, remindAt: remindAt || null,
       doneAt: status === 'erledigt' ? task?.doneAt ?? Date.now() : null,
     }
     if (task?.id) await db.tasks.update(task.id, data)
@@ -163,6 +164,12 @@ function TaskForm({ onClose, task, defaultSubjectId, defaultDue }: { onClose: ()
         </Field>
         <Field label="Status">
           <Segmented<TaskStatus> className="w-full" value={status} onChange={setStatus} options={(['offen', 'inArbeit', 'erledigt'] as TaskStatus[]).map((s) => ({ value: s, label: STATUS_LABEL[s] }))} />
+        </Field>
+        <Field label="Erinnern (Push-Mitteilung)">
+          <div className="flex gap-2">
+            <Input type="datetime-local" value={remindAt} onChange={(e) => setRemindAt(e.target.value)} />
+            {remindAt && <Button variant="ghost" onClick={() => setRemindAt('')}>Keine</Button>}
+          </div>
         </Field>
         <Field label="Notizen">
           <Textarea rows={3} value={notes} onChange={(e) => setNotes(e.target.value)} />

@@ -9,6 +9,7 @@ import { usePeriods, useSetting, useToday } from '../lib/hooks'
 import { Button, IconButton, Input, PageHeader, Panel, Segmented, useConfirm } from '../components/ui'
 import { KiSettings } from '../components/KiSettings'
 import { SyncSettings } from '../components/SyncSettings'
+import { ReminderSettings } from '../components/ReminderSettings'
 import { AssistantSettings } from '../components/AssistantSettings'
 import { Link } from 'react-router-dom'
 
@@ -65,6 +66,7 @@ export default function SettingsPage() {
       <div className="grid gap-5 lg:grid-cols-2">
         <div className="space-y-5">
           <SyncSettings />
+          <ReminderSettings />
           <KiSettings />
           <AssistantSettings />
           <Link to="/design" className="panel flex items-center gap-4 rounded-2xl border border-line bg-surface p-4 hover:bg-sunken">

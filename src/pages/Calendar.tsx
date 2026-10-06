@@ -1,13 +1,14 @@
 import { useState } from 'react'
 import { useLiveQuery } from 'dexie-react-hooks'
 import { ChevronLeft, ChevronRight, Plus } from 'lucide-react'
-import { db, type Exam, type Lesson, type Task } from '../db'
+import { db, type Exam, type Lesson, type Shift, type Task } from '../db'
 import { DAY_SHORT, MONTH_NAMES, addDays, formatLong, mondayOf, toISO } from '../lib/date'
 import { lessonSpan, lessonsForDate, usePeriods, useSetting, useSubjects, useToday } from '../lib/hooks'
 import { ExamSheet } from '../components/forms'
 import { TaskRow, TaskSheet } from '../components/tasks'
 import { Button, IconButton, PageHeader, Panel, SubjectTag, cx, useConfirm } from '../components/ui'
 import { ExamRow } from './Exams'
+import { ShiftRow, ShiftSheet, shiftLabel } from '../components/shifts'
 
 export default function CalendarPage() {
   const today = useToday()
@@ -19,6 +20,8 @@ export default function CalendarPage() {
   const lessons = useLiveQuery(() => db.lessons.toArray(), [], [] as Lesson[])
   const exams = useLiveQuery(() => db.exams.toArray(), [], [] as Exam[])
   const tasks = useLiveQuery(() => db.tasks.toArray(), [], [] as Task[])
+  const shifts = useLiveQuery(() => db.shifts.toArray(), [], [] as Shift[])
+  const [editShift, setEditShift] = useState<Shift | null | undefined>(undefined)
   const [editTask, setEditTask] = useState<Task | null | undefined>(undefined)
   const [editExam, setEditExam] = useState<Exam | null | undefined>(undefined)
   const confirm = useConfirm()
@@ -32,6 +35,7 @@ export default function CalendarPage() {
   const goToday = () => { const d = new Date(); setCursor({ y: d.getFullYear(), m: d.getMonth() }); setSelected(today) }
 
   const examsOn = (iso: string) => exams.filter((e) => e.date === iso)
+  const shiftsOn = (iso: string) => shifts.filter((x) => x.date === iso).sort((a, b) => a.start.localeCompare(b.start))
   const tasksOn = (iso: string) => tasks.filter((t) => t.due === iso && t.status !== 'erledigt')
   const selLessons = lessonsForDate(lessons, selected, abRef)
   const del = async (t: Task) => { if (await confirm.ask(`„${t.title}" wird gelöscht.`)) await db.tasks.delete(t.id!) }
@@ -75,6 +79,11 @@ export default function CalendarPage() {
                   <span className={cx('flex size-7 items-center justify-center self-start rounded-full text-sm font-semibold tabular', isToday && !isSel && 'bg-brass text-white')}>
                     {Number(iso.slice(8))}
                   </span>
+                  {shiftsOn(iso).map((x) => (
+                    <span key={`s${x.id}`} className={cx('truncate rounded px-1 text-[11px] leading-4 font-bold', isSel ? 'bg-paper/20 text-paper' : 'bg-brass-soft text-brass')}>
+                      {shiftLabel(x)}
+                    </span>
+                  ))}
                   {ex.slice(0, 2).map((e) => (
                     <span key={e.id} className="truncate rounded px-1 text-[11px] leading-4 font-bold text-white" style={{ background: byId.get(e.subjectId)?.color ?? 'var(--brass)' }}>
                       {byId.get(e.subjectId)?.short} {e.kind === 'Schularbeit' ? 'SA' : e.kind}
@@ -88,11 +97,14 @@ export default function CalendarPage() {
               )
             })}
           </div>
-          <p className="px-2 pt-2 pb-1 text-xs text-ink-3">Balken = Schultag · Zahl = fällige Aufgaben · farbig = Prüfungen</p>
+          <p className="px-2 pt-2 pb-1 text-xs text-ink-3">Balken = Schultag · Zahl = fällige Aufgaben · farbig = Prüfungen · Uhrzeit = Arbeit</p>
         </Panel>
 
         <div className="space-y-5">
           <h2 className="display text-2xl">{formatLong(selected)}</h2>
+          <Panel title="Arbeit" action={<IconButton label="Schicht an diesem Tag" onClick={() => setEditShift(null)}><Plus size={20} /></IconButton>}>
+            {shiftsOn(selected).length ? shiftsOn(selected).map((x) => <ShiftRow key={x.id} shift={x} onOpen={setEditShift} />) : <p className="px-4 pb-3 text-ink-3">Keine Schicht.</p>}
+          </Panel>
           <Panel title="Prüfungen" action={<IconButton label="Prüfung an diesem Tag" onClick={() => setEditExam(null)}><Plus size={20} /></IconButton>}>
             {examsOn(selected).length ? (
               <ul className="divide-y divide-line">{examsOn(selected).map((e) => <ExamRow key={e.id} exam={e} today={today} onOpen={setEditExam} />)}</ul>
@@ -122,6 +134,7 @@ export default function CalendarPage() {
         </div>
       </div>
       <TaskSheet open={editTask !== undefined} task={editTask} defaultDue={selected} onClose={() => setEditTask(undefined)} />
+      <ShiftSheet open={editShift !== undefined} shift={editShift} defaultDate={selected} onClose={() => setEditShift(undefined)} />
       <ExamSheet open={editExam !== undefined} exam={editExam} defaultDate={selected} onClose={() => setEditExam(undefined)} />
       {confirm.element}
     </div>

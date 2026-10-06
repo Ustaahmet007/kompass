@@ -1,3 +1,4 @@
+import { MusicHost } from './components/Music'
 import { useEffect, useState, type ReactNode } from 'react'
 import { HashRouter, NavLink, Route, Routes, useLocation } from 'react-router-dom'
 import { BookOpen, CalendarDays, ClipboardList, Compass, Flag, GraduationCap, LayoutGrid, MoreHorizontal, NotebookPen, Palette, Settings, Sparkles, Sun, Target, Timer as TimerIcon } from 'lucide-react'
@@ -174,6 +175,7 @@ function Shell() {
           <div className="mx-auto max-w-6xl px-6 py-8 lg:px-10">{routes}</div>
         </main>
         {fab}
+        <MusicHost />
       </div>
     )
   }
@@ -184,6 +186,7 @@ function Shell() {
       <BackgroundImage design={design} />
       <main className="safe-top"><div className="px-4 pt-6 pb-28 sm:px-6">{routes}</div></main>
       {fab}
+      <MusicHost />
       <nav className="safe-bottom fixed inset-x-0 bottom-0 z-40 border-t border-line bg-surface/95 backdrop-blur">
         <div className="mx-auto grid max-w-xl grid-cols-5">
           {TAB_ITEMS.map((n) => (

@@ -39,6 +39,7 @@ const TOOLS: Tool[] = [
         subject: { type: 'string', description: 'Fach-Kürzel oder Name, falls bekannt' },
         due: { type: 'string', description: 'Fälligkeitsdatum YYYY-MM-DD' },
         priority: { type: 'integer', enum: [1, 2, 3], description: '1 hoch, 2 mittel, 3 niedrig' },
+        remind_at: { type: 'string', description: 'Optional: Erinnerung als Push-Mitteilung, lokale Zeit YYYY-MM-DDTHH:MM' },
       },
       required: ['title'],
     },
@@ -60,6 +61,20 @@ const TOOLS: Tool[] = [
         topic: { type: 'string', description: 'Stoff' },
       },
       required: ['subject', 'date', 'kind'],
+    },
+  },
+  {
+    name: 'add_shift',
+    description: 'Trägt eine Arbeitsschicht ein (z. B. Bäckerei).',
+    input_schema: {
+      type: 'object',
+      properties: {
+        date: { type: 'string', description: 'YYYY-MM-DD' },
+        start: { type: 'string', description: 'HH:MM' },
+        end: { type: 'string', description: 'HH:MM' },
+        label: { type: 'string', description: 'z. B. Bäckerei' },
+      },
+      required: ['date', 'start', 'end'],
     },
   },
   {
@@ -102,6 +117,7 @@ async function runTool(name: string, input: Record<string, unknown>, actions: Ac
         due: isDate(input.due) ? input.due : null,
         priority: ([1, 2, 3].includes(Number(input.priority)) ? Number(input.priority) : 2) as Priority,
         status: 'offen',
+        remindAt: typeof input.remind_at === 'string' && /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}/.test(input.remind_at) ? input.remind_at.slice(0, 16) : null,
         createdAt: Date.now(),
       })
       actions.push({ label: `Aufgabe „${input.title}" eingetragen`, undo: { table: 'tasks', id: id as number, op: 'delete' } })
@@ -121,6 +137,16 @@ async function runTool(name: string, input: Record<string, unknown>, actions: Ac
       const kind = (['Schularbeit', 'Test', 'Prüfung', 'Abgabe'].includes(String(input.kind)) ? input.kind : 'Test') as ExamKind
       const id = await db.exams.add({ subjectId: subject.id!, date: input.date, kind, topic: String(input.topic ?? '') })
       actions.push({ label: `${kind} ${subject.short} am ${input.date} eingetragen`, undo: { table: 'exams', id: id as number, op: 'delete' } })
+      return { content: 'Eingetragen.' }
+    }
+    case 'add_shift': {
+      const hhmm = (v: unknown) => (typeof v === 'string' && /^\d{1,2}:\d{2}$/.test(v) ? v.padStart(5, '0') : null)
+      const start = hhmm(input.start)
+      const end = hhmm(input.end)
+      if (!isDate(input.date) || !start || !end) return { content: 'Datum oder Uhrzeit fehlt.', is_error: true }
+      const label = String(input.label ?? (await getSetting<string>('shiftLabel', 'Bäckerei')))
+      const id = await db.shifts.add({ date: input.date, start, end, label })
+      actions.push({ label: `Schicht ${label} ${input.date} ${start}–${end} eingetragen`, undo: { table: 'shifts', id: id as number, op: 'delete' } })
       return { content: 'Eingetragen.' }
     }
     case 'add_grade': {

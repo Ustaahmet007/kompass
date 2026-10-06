@@ -6,6 +6,7 @@ import { formatAvg, projectedGrade, weightedAverage } from './grades'
 /** A compact plain-text snapshot of the user's school data for the assistant and the planner. */
 export async function buildSchoolContext(): Promise<string> {
   const today = todayISO()
+  const shifts = await db.shifts.where('date').between(today, addDays(today, 14), true, true).sortBy('date')
   const [subjects, lessons, periods, tasks, exams, grades, plans] = await Promise.all([
     db.subjects.toArray(),
     db.lessons.toArray(),
@@ -67,6 +68,10 @@ export async function buildSchoolContext(): Promise<string> {
     const list = own.sort((a, b) => a.date.localeCompare(b.date)).map((g) => `${g.value} ${g.category}`).join(', ')
     lines.push(`- ${s.short}: Schnitt ${formatAvg(avg)}, Tendenz ${projectedGrade(avg)} | ${list} | Gewichtung ${s.categories.map((c) => `${c.name} ${c.weight}%`).join(', ')}`)
   }
+
+  lines.push('\nARBEITSSCHICHTEN (nächste 14 Tage, da hat der Nutzer keine Zeit):')
+  for (const x of shifts) lines.push(`- ${DAY_NAMES[weekdayIndex(x.date)]} ${x.date}: ${x.start}-${x.end} ${x.label}`)
+  if (!shifts.length) lines.push('- keine eingetragen')
 
   const planItems = plans.flatMap((p) => p.items.filter((i) => !i.done && i.date >= today && i.date <= addDays(today, 6)).map((i) => ({ p, i })))
   if (planItems.length) {
