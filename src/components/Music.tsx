@@ -5,18 +5,23 @@
  */
 import { useEffect, useRef, useState, useSyncExternalStore } from 'react'
 import { useLocation, useNavigate } from 'react-router-dom'
-import { Music2, Pause, Play, Plus, X } from 'lucide-react'
+import { ImagePlus, Music2, Pause, Play, Plus, X } from 'lucide-react'
+import { saveGif, useImageUrl } from '../lib/images'
 import { setSetting } from '../db'
 import { useSetting } from '../lib/hooks'
-import { Button, Input, cx } from './ui'
+import { Button, Input, Segmented, cx } from './ui'
 
 export interface MusicSettings {
   lists: { name: string; url: string }[]
   current: string | null
   autoplay: boolean // start with a focus block
   pauseOnBreak: boolean
+  view?: 'klein' | 'cover' | 'gif'
+  gifId?: number | null
+  gifBehindTimer?: boolean
 }
-export const DEFAULT_MUSIC: MusicSettings = { lists: [], current: null, autoplay: true, pauseOnBreak: true }
+export const DEFAULT_MUSIC: MusicSettings = { lists: [], current: null, autoplay: true, pauseOnBreak: true, view: 'cover', gifId: null, gifBehindTimer: false }
+const SLOT_H = { klein: 166, cover: 360, gif: 166 }
 
 // ---- SoundCloud Widget API ----------------------------------------------------------------
 interface SCWidget {
@@ -76,9 +81,9 @@ function setAnchor(el: HTMLElement | null) {
   anchorSubs.forEach((f) => f())
 }
 
-export function embedUrl(url: string) {
+export function embedUrl(url: string, visual = false) {
   const color = getComputedStyle(document.documentElement).getPropertyValue('--brass').trim().replace('#', '') || 'b07a3c'
-  return `https://w.soundcloud.com/player/?url=${encodeURIComponent(url)}&color=%23${color}&auto_play=false&hide_related=true&show_comments=false&show_user=true&show_reposts=false&show_teaser=false&visual=false`
+  return `https://w.soundcloud.com/player/?url=${encodeURIComponent(url)}&color=%23${color}&auto_play=false&hide_related=true&show_comments=false&show_user=true&show_reposts=false&show_teaser=false&visual=${visual}`
 }
 
 export const isSoundCloudUrl = (u: string) => /^https?:\/\/(www\.|m\.|on\.)?soundcloud\.com\/\S+/i.test(u.trim())
@@ -91,7 +96,7 @@ export function MusicHost() {
   const nav = useNavigate()
   const player = usePlayer()
   const [rect, setRect] = useState<DOMRect | null>(null)
-  const src = music.current ? embedUrl(music.current) : null
+  const src = music.current ? embedUrl(music.current, (music.view ?? 'cover') === 'cover') : null
 
   // Hook up the widget API whenever the playlist changes.
   useEffect(() => {
@@ -231,7 +236,13 @@ export function MusicPanel() {
 
       {music.current && (
         <>
-          <PlayerSlot />
+          <Segmented
+            value={music.view ?? 'cover'}
+            onChange={(v) => save({ view: v })}
+            options={[{ value: 'cover', label: 'Cover groß' }, { value: 'klein', label: 'Klein' }, { value: 'gif', label: 'Eigenes GIF' }]}
+          />
+          {(music.view ?? 'cover') === 'gif' && <GifArea music={music} save={save} />}
+          <PlayerSlot height={SLOT_H[music.view ?? 'cover']} />
           <div className="flex flex-wrap items-center gap-2">
             <Button onClick={() => (player.playing ? musicPause() : musicPlay())} disabled={!player.ready}>
               {player.playing ? <><Pause size={16} /> Musik pausieren</> : <><Play size={16} /> Musik abspielen</>}
@@ -251,11 +262,64 @@ export function MusicPanel() {
   )
 }
 
-function PlayerSlot() {
+function GifArea({ music, save }: { music: MusicSettings; save: (p: Partial<MusicSettings>) => void }) {
+  const input = useRef<HTMLInputElement>(null)
+  const url = useImageUrl(music.gifId)
+  const [err, setErr] = useState('')
+  const pick = async (f?: File) => {
+    if (!f) return
+    setErr('')
+    try {
+      save({ gifId: await saveGif(f, music.gifId) })
+    } catch (e) {
+      setErr(e instanceof Error ? e.message : String(e))
+    }
+    if (input.current) input.current.value = ''
+  }
+  return (
+    <div className="space-y-2">
+      <button type="button" onClick={() => input.current?.click()} className="relative flex aspect-video w-full items-center justify-center overflow-hidden rounded-xl border border-dashed border-line bg-sunken text-ink-2">
+        {url ? <img src={url} alt="Dein GIF" className="absolute inset-0 size-full object-cover" /> : <span className="flex items-center gap-2"><ImagePlus size={20} /> GIF oder Bild wählen</span>}
+      </button>
+      <input ref={input} type="file" accept="image/gif,image/*" hidden onChange={(e) => pick(e.target.files?.[0])} />
+      {err && <p className="text-sm text-danger">{err}</p>}
+      {music.gifId && (
+        <div className="flex flex-wrap items-center gap-2">
+          <Button variant="ghost" onClick={() => input.current?.click()}>Anderes GIF</Button>
+          <label className="flex min-h-11 items-center gap-3">
+            <input type="checkbox" className="size-5 accent-[var(--brass)]" checked={!!music.gifBehindTimer} onChange={(e) => save({ gifBehindTimer: e.target.checked })} />
+            <span>Auch hinter dem Timer</span>
+          </label>
+        </div>
+      )}
+      <p className="text-sm text-ink-3">Tipp: auf giphy.com oder tenor.com ein GIF suchen (z. B. „lofi rain“), lange drücken → „In Fotos sichern“, dann hier wählen. Max. 8 MB.</p>
+    </div>
+  )
+}
+
+/** The user's GIF as a dimmed background behind the timer, if switched on. */
+export function TimerBackdrop() {
+  const music = useSetting<MusicSettings>('music', DEFAULT_MUSIC)
+  const on = music.view === 'gif' && music.gifBehindTimer && !!music.gifId
+  const url = useImageUrl(on ? music.gifId : null)
+  if (!url) return null
+  return (
+    <>
+      <img src={url} alt="" className="pointer-events-none absolute inset-0 size-full object-cover" />
+      <div className="pointer-events-none absolute inset-0 bg-surface/70" />
+    </>
+  )
+}
+
+function PlayerSlot({ height }: { height: number }) {
   const ref = useRef<HTMLDivElement>(null)
   useEffect(() => {
     setAnchor(ref.current)
     return () => setAnchor(null)
   }, [])
-  return <div ref={ref} className="h-[166px] w-full rounded-xl bg-sunken" aria-hidden />
+  useEffect(() => {
+    // Let the floating player follow the new size.
+    setAnchor(ref.current)
+  }, [height])
+  return <div ref={ref} style={{ height }} className="w-full rounded-xl bg-sunken" aria-hidden />
 }

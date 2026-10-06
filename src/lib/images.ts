@@ -46,6 +46,26 @@ export async function saveImage(file: File, replaceId?: number | null) {
   return id
 }
 
+/** Stores an animated GIF as it is (compressing would freeze it). Max 8 MB. */
+export async function saveGif(file: File, replaceId?: number | null) {
+  if (file.type !== 'image/gif') return saveImage(file, replaceId)
+  if (file.size > 8 * 1024 * 1024) throw new Error('Das GIF ist größer als 8 MB.')
+  const src = URL.createObjectURL(file)
+  try {
+    const img = await new Promise<HTMLImageElement>((resolve, reject) => {
+      const i = new Image()
+      i.onload = () => resolve(i)
+      i.onerror = () => reject(new Error('Das GIF konnte nicht geöffnet werden.'))
+      i.src = src
+    })
+    const id = (await db.images.add({ blob: file, width: img.naturalWidth, height: img.naturalHeight, createdAt: Date.now() })) as number
+    if (replaceId) await db.images.delete(replaceId)
+    return id
+  } finally {
+    URL.revokeObjectURL(src)
+  }
+}
+
 export function deleteImage(id?: number | null) {
   return id ? db.images.delete(id) : Promise.resolve()
 }

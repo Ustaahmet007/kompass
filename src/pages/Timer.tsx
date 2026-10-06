@@ -4,7 +4,7 @@ import { Pause, Play, RotateCcw, SkipForward, Square } from 'lucide-react'
 import { db, setSetting, type StudySession } from '../db'
 import { DAY_SHORT, addDays, mondayOf, todayISO } from '../lib/date'
 import { useNow, useSetting, useSubjects, useToday } from '../lib/hooks'
-import { DEFAULT_MUSIC, MusicPanel, musicPause, musicPlay, type MusicSettings } from '../components/Music'
+import { DEFAULT_MUSIC, MusicPanel, TimerBackdrop, musicPause, musicPlay, type MusicSettings } from '../components/Music'
 import { Button, Field, PageHeader, Panel, Segmented, SubjectSelect, SubjectTag, cx } from '../components/ui'
 
 interface TimerState {
@@ -130,7 +130,9 @@ export default function Timer() {
     <div>
       <PageHeader title="Lerntimer" subtitle={`Heute ${hm(todayMin)} gelernt`} />
       <div className="grid gap-5 lg:grid-cols-[minmax(0,1.2fr)_minmax(0,1fr)]">
-        <Panel className="flex flex-col items-center px-4 py-6">
+        <Panel className="relative flex flex-col items-center overflow-hidden px-4 py-6">
+          <TimerBackdrop />
+          <div className="relative flex w-full flex-col items-center">
           <Segmented
             value={`${state.focusMin}/${state.breakMin}`}
             onChange={(v) => { const [f, b] = v.split('/').map(Number); setLength(f, b) }}
@@ -163,6 +165,7 @@ export default function Timer() {
             </Field>
           </div>
           <p className="mt-4 max-w-sm text-center text-sm text-ink-3">Der Timer läuft weiter, auch wenn du die App schließt. Ton kommt nur, wenn Kompass offen ist.</p>
+          </div>
         </Panel>
 
         <div className="space-y-5">
