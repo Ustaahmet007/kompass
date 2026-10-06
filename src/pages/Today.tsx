@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { useImageUrl } from '../lib/images'
 import { FramedImage } from '../components/Picture'
+import { BriefingButton, BriefingCard, useBriefing } from '../components/BriefingButton'
 import { Link } from 'react-router-dom'
 import { useLiveQuery } from 'dexie-react-hooks'
 import { Plus } from 'lucide-react'
@@ -231,28 +232,41 @@ function greeting(hour: number) {
 }
 
 function TodayHeader({ date, hour, meta }: { date: string; hour: number; meta: React.ReactNode }) {
+  const b = useBriefing()
   const name = useSetting('userName', '')
   const coverId = useSetting<number | null>('homeCoverId', null)
   const cover = useImageUrl(coverId)
   const hello = `${greeting(hour)}${name ? `, ${name}` : ''}${hour >= 23 || hour < 5 ? '?' : ''}`
   if (cover) {
     return (
+      <>
       <header className="relative mb-7 overflow-hidden rounded-3xl">
         <div className="h-52 w-full sm:h-64"><FramedImage id={coverId} /></div>
         <div className="absolute inset-0 bg-gradient-to-t from-black/65 via-black/20 to-transparent" />
-        <div className="absolute inset-x-0 bottom-0 px-5 pb-4 text-white sm:px-7 sm:pb-6">
-          <p className="text-lg font-medium text-white/90">{hello}</p>
-          <h1 className="display text-4xl drop-shadow sm:text-5xl">{date}</h1>
-          <p className="mt-1 text-sm text-white/85 [&_.text-danger]:text-red-200">{meta}</p>
+        <div className="absolute inset-x-0 bottom-0 flex flex-wrap items-end justify-between gap-3 px-5 pb-4 text-white sm:px-7 sm:pb-6">
+          <div>
+            <p className="text-lg font-medium text-white/90">{hello}</p>
+            <h1 className="display text-4xl drop-shadow sm:text-5xl">{date}</h1>
+            <p className="mt-1 text-sm text-white/85 [&_.text-danger]:text-red-200">{meta}</p>
+          </div>
+          <BriefingButton b={b} onImage />
         </div>
       </header>
+      <BriefingCard b={b} />
+      </>
     )
   }
   return (
-    <header className="mb-7">
-      <p className="text-lg text-ink-2">{hello}</p>
-      <h1 className="display mt-0.5 text-4xl sm:text-5xl">{date}</h1>
-      <p className="mt-1 text-sm text-ink-2">{meta}</p>
-    </header>
+    <>
+      <header className="mb-7 flex flex-wrap items-end justify-between gap-4">
+        <div>
+          <p className="text-lg text-ink-2">{hello}</p>
+          <h1 className="display mt-0.5 text-4xl sm:text-5xl">{date}</h1>
+          <p className="mt-1 text-sm text-ink-2">{meta}</p>
+        </div>
+        <BriefingButton b={b} />
+      </header>
+      <BriefingCard b={b} />
+    </>
   )
 }

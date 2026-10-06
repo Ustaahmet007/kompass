@@ -2,7 +2,8 @@ import { db, getSetting, setSetting, type ChatMessage, type ExamKind, type Prior
 import { callClaude, textOf, type ApiMessage, type ContentBlock, type Tool } from './claude'
 import { buildSchoolContext } from './context'
 import { resolvePersona, type CustomPersona, type PersonaDef } from './personas'
-import { todayISO } from './date'
+import { minutesOf, mondayOf, nowMinutes, todayISO } from './date'
+import { lessonSpan, lessonsForDate } from './hooks'
 
 type Action = NonNullable<ChatMessage['actions']>[number]
 
@@ -183,26 +184,43 @@ export async function undoAction(messageId: number, index: number) {
   await db.chat.update(messageId, { actions: actions.length ? actions : undefined })
 }
 
-/** Spoken daily briefing. Cached per day so re-playing it costs nothing. */
-export async function getBriefing(force = false): Promise<string> {
+/** Which briefing fits right now: before/at school ("schule") or after school ("zuhause"). */
+export async function briefingPhase(): Promise<'schule' | 'zuhause'> {
   const today = todayISO()
-  const cached = await getSetting<{ date: string; text: string; persona?: string } | null>('briefing', null)
+  const [lessons, periods] = await Promise.all([db.lessons.toArray(), db.periods.orderBy('nr').toArray()])
+  const abRef = await getSetting('abReference', mondayOf(today))
+  const todays = lessonsForDate(lessons, today, abRef)
+  const now = nowMinutes()
+  if (!todays.length) return now < 12 * 60 ? 'schule' : 'zuhause'
+  const end = lessonSpan(todays[todays.length - 1], periods).end
+  return end && now >= minutesOf(end) ? 'zuhause' : 'schule'
+}
+
+const BRIEFING_PROMPT = {
+  schule:
+    'Begrüß mich kurz (passend zur Tageszeit, mit meinem Namen falls bekannt) und gib mir mein Briefing für heute zum Vorlesen, 4 bis 6 Sätze: ' +
+    'wann es losgeht und was heute ansteht (lange Blöcke erwähnen), was heute oder morgen fällig oder schon überfällig ist, ' +
+    'die nächste Prüfung und was der Lernplan für heute vorsieht. Nur das Wichtigste, in deiner Rolle.',
+  zuhause:
+    'Ich bin gerade nach Hause gekommen. Begrüß mich kurz (passend zur Tageszeit, mit meinem Namen falls bekannt) und sag mir in 4 bis 6 Sätzen zum Vorlesen, ' +
+    'was ich heute noch erledigen sollte: Hausübungen und Aufgaben für morgen oder überfällige, was der Lernplan heute vorsieht, ' +
+    'die nächste Prüfung und womit morgen der Unterricht beginnt. Schlag eine sinnvolle Reihenfolge vor. Nur das Wichtigste, in deiner Rolle.',
+}
+
+/** Spoken greeting + overview. Cached per day, time of day and character, so re-playing costs nothing. */
+export async function getBriefing(force = false): Promise<{ text: string; phase: 'schule' | 'zuhause' }> {
+  const today = todayISO()
+  const phase = await briefingPhase()
   const persona = await currentPersona()
-  if (!force && cached?.date === today && cached.persona === persona.name) return cached.text
+  const cached = await getSetting<{ date: string; text: string; persona?: string; phase?: string } | null>('briefing', null)
+  if (!force && cached?.date === today && cached.persona === persona.name && cached.phase === phase) return { text: cached.text, phase }
+  const name = await getSetting<string>('userName', '')
   const res = await callClaude({
-    system: systemPrompt(persona, await buildSchoolContext()),
-    messages: [
-      {
-        role: 'user',
-        content:
-          'Gib mir mein kurzes Tagesbriefing zum Vorlesen, auf Deutsch, 4 bis 6 Sätze. Wenn der Unterricht heute schon vorbei ist, schau auf morgen. ' +
-          'Was steht im Stundenplan an (Beginn, Besonderheiten wie lange Blöcke), was ist fällig oder überfällig, welche Prüfung kommt als nächstes und was sagt der Lernplan. ' +
-          'Fang mit einer kurzen Begrüßung an. Nur das Wichtigste.',
-      },
-    ],
-    maxTokens: 400,
+    system: systemPrompt(persona, await buildSchoolContext()) + (name ? `\n\nDer Nutzer heißt ${name}.` : ''),
+    messages: [{ role: 'user', content: BRIEFING_PROMPT[phase] }],
+    maxTokens: 450,
   })
   const text = textOf(res)
-  await setSetting('briefing', { date: today, text, persona: persona.name })
-  return text
+  await setSetting('briefing', { date: today, text, persona: persona.name, phase })
+  return { text, phase }
 }

@@ -93,7 +93,7 @@ export default function Assistant() {
     setError('')
     setBusy(true)
     try {
-      const text = await getBriefing(force)
+      const { text } = await getBriefing(force)
       setBriefing(text)
       say(text, 'briefing')
     } catch (e) {
