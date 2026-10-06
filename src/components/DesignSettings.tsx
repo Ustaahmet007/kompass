@@ -1,7 +1,7 @@
 import { useRef, useState } from 'react'
 import { Check, ImagePlus, Trash2 } from 'lucide-react'
 import { setSetting } from '../db'
-import { DEFAULT_THEME, FONTS, PRESETS, type Background, type FontId, type PresetId, type SubjectColorMode, type ThemeSettings } from '../lib/theme'
+import { DEFAULT_THEME, FONTS, PRESETS, type Background, type FontId, type PresetId, type SubjectColorMode, type ThemeSettings, SUBJECT_PALETTES, normalizeColorMode } from '../lib/theme'
 import { deleteImage, saveImage, useImageUrl } from '../lib/images'
 import { useSetting } from '../lib/hooks'
 import { Button, Field, Input, Panel, Segmented, cx } from './ui'
@@ -134,9 +134,32 @@ export function DesignSettings() {
           </div>
         </div>
 
-        <Field label="Fachfarben" hint="Gedämpft passt zu den warmen Themen. Schlicht zeigt im Stundenplan nur einen Farbstreifen.">
-          <Segmented<SubjectColorMode> className="w-full" value={design.subjectColors ?? 'gedaempft'} onChange={(v) => set({ subjectColors: v })} options={[{ value: 'gedaempft', label: 'Gedämpft' }, { value: 'schlicht', label: 'Schlicht' }, { value: 'kraeftig', label: 'Kräftig' }]} />
-        </Field>
+        <div>
+          <span className="mb-2 block text-sm font-medium text-ink-2">Fachfarben</span>
+          <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
+            {([
+              ['thema', 'Passend zum Thema'],
+              ['einfarbig', 'Einfarbig'],
+              ['schlicht', 'Schlicht'],
+              ['eigene', 'Eigene Farben'],
+            ] as [SubjectColorMode, string][]).map(([m, label]) => {
+              const active = normalizeColorMode(design.subjectColors) === m
+              const pal = SUBJECT_PALETTES[design.preset] ?? SUBJECT_PALETTES.kamin
+              const sw = m === 'thema' ? pal.colors.slice(0, 4) : m === 'einfarbig' ? [pal.mono, pal.mono, pal.mono, pal.mono] : m === 'eigene' ? ['#c2410c', '#2563eb', '#0d9488', '#ca8a04'] : []
+              return (
+                <button key={m} type="button" aria-pressed={active} onClick={() => set({ subjectColors: m })} className={cx('rounded-xl border-2 p-2.5 text-left', active ? 'border-brass bg-brass-soft/50' : 'border-line')}>
+                  <span className="mb-2 flex h-6 gap-1">
+                    {m === 'schlicht'
+                      ? pal.colors.slice(0, 4).map((c) => <span key={c} className="flex-1 rounded-sm border-l-4 bg-sunken" style={{ borderColor: c }} />)
+                      : sw.map((c, i) => <span key={i} className="flex-1 rounded-sm" style={{ background: c }} />)}
+                  </span>
+                  <span className="text-sm font-medium">{label}</span>
+                </button>
+              )
+            })}
+          </div>
+          <p className="mt-1.5 text-sm text-ink-3">„Eigene Farben" nimmt die Farbe, die du beim Fach eingestellt hast.</p>
+        </div>
 
         <div className="space-y-3">
           <Field label="Hintergrund">

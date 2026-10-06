@@ -54,7 +54,7 @@ export interface ThemeSettings {
   background: Background
   bgDim: number // 0–90 %
   bgBlur: number // px
-  subjectColors?: SubjectColorMode
+  subjectColors?: string
 }
 
 export const DEFAULT_THEME: ThemeSettings = { preset: 'kamin', mode: 'system', accent: null, font: 'fraunces', background: 'plain', bgDim: 55, bgBlur: 6 }
@@ -104,29 +104,31 @@ export function applyTheme(t: ThemeSettings, systemDark: boolean) {
   return { dark, tokens: tok }
 }
 
-export type SubjectColorMode = 'gedaempft' | 'kraeftig' | 'schlicht'
+export type SubjectColorMode = 'thema' | 'einfarbig' | 'schlicht' | 'eigene'
 
-function hexToHsl(hex: string) {
-  const { r, g, b } = hexToRgb(hex)
-  const [R, G, B] = [r / 255, g / 255, b / 255]
-  const max = Math.max(R, G, B)
-  const min = Math.min(R, G, B)
-  const l = (max + min) / 2
-  if (max === min) return { h: 0, s: 0, l }
-  const d = max - min
-  const s = l > 0.5 ? d / (2 - max - min) : d / (max + min)
-  const h = max === R ? (G - B) / d + (G < B ? 6 : 0) : max === G ? (B - R) / d + 2 : (R - G) / d + 4
-  return { h: h * 60, s, l }
+/** Older saved values from before the theme palettes existed. */
+export function normalizeColorMode(m?: string): SubjectColorMode {
+  if (m === 'thema' || m === 'einfarbig' || m === 'schlicht' || m === 'eigene') return m
+  if (m === 'kraeftig') return 'eigene'
+  return 'thema'
 }
 
 /**
- * Subject colours as shown in the app. "gedämpft" turns bright picks into calm, earthy tones
- * that sit well with the warm themes; white text stays readable on them.
+ * Subject palettes that belong to each theme. All are mid-dark so white text stays readable
+ * in light and dark mode. `mono` is the single colour for "Einfarbig".
  */
-export function displaySubjectColor(hex: string, mode: SubjectColorMode = 'gedaempft') {
-  if (mode === 'kraeftig' || !/^#?[0-9a-f]{3,6}$/i.test(hex)) return hex
-  const { h, s, l } = hexToHsl(hex)
-  const s2 = Math.min(s, 0.3)
-  const l2 = Math.min(0.46, Math.max(0.36, l))
-  return `hsl(${h.toFixed(0)} ${(s2 * 100).toFixed(0)}% ${(l2 * 100).toFixed(0)}%)`
+export const SUBJECT_PALETTES: Record<PresetId, { colors: string[]; mono: string }> = {
+  kamin: { colors: ['#8a5a3c', '#5f6b4a', '#a0522d', '#4f5d6b', '#9c6b30', '#7a3e2f', '#6b5a4a', '#56614f', '#8b6d5c', '#704a3a'], mono: '#7a5a44' },
+  academia: { colors: ['#5a4632', '#6b2d2d', '#3f4a3a', '#7a6233', '#2f3d4f', '#5c3b4a', '#4a5240', '#806040', '#3a3a52', '#6a4a2a'], mono: '#4a3c2c' },
+  wald: { colors: ['#3d6b47', '#6b6a3a', '#2f5d5a', '#5a7a3a', '#4a5a6b', '#3a5a3a', '#7a5a3a', '#2f4f4a', '#5a6b4f', '#4a6b5a'], mono: '#3d5f47' },
+  mitternacht: { colors: ['#2c3e6b', '#3b5b8a', '#4a4a7a', '#2f5f7a', '#5a4a7a', '#3a6a8a', '#1f4a6a', '#6a5a8a', '#34506a', '#4a3a6a'], mono: '#2f4470' },
+  rose: { colors: ['#9a4a62', '#7a4a6a', '#b0607a', '#6a4a5a', '#a0505a', '#8a5a7a', '#b07060', '#7a3a4a', '#94627a', '#6a5060'], mono: '#8a4a5e' },
+}
+
+/** Colour a subject is shown in, depending on the chosen style and theme. `index` = stable position of the subject. */
+export function displaySubjectColor(hex: string, mode: SubjectColorMode, index: number, preset: PresetId) {
+  const pal = SUBJECT_PALETTES[preset] ?? SUBJECT_PALETTES.kamin
+  if (mode === 'eigene') return hex
+  if (mode === 'einfarbig') return pal.mono
+  return pal.colors[index % pal.colors.length]
 }

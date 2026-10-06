@@ -5,8 +5,7 @@ import { AlertTriangle, ArrowLeft, ImagePlus, Pencil, Plus, Trash2 } from 'lucid
 import { db, type Exam, type Grade, type Lesson, type Task } from '../db'
 import { DAY_SHORT, formatDate } from '../lib/date'
 import { formatAvg, gradeColor, gradeName, projectedGrade, runningAverages, weightSum, weightedAverage } from '../lib/grades'
-import { lessonSpan, usePeriods, useSubjectColorMode, useSubjects, useToday } from '../lib/hooks'
-import { displaySubjectColor } from '../lib/theme'
+import { lessonSpan, usePeriods, useSubjects, useToday } from '../lib/hooks'
 import { ExamSheet, GradeSheet } from '../components/forms'
 import { GradeTrend, TrendLegend } from '../components/GradeTrend'
 import { Notenrechner } from '../components/Notenrechner'
@@ -36,7 +35,7 @@ export default function SubjectDetail() {
   const [showDone, setShowDone] = useState(false)
   const [coverOpen, setCoverOpen] = useState(false)
   const cover = useImageUrl(subject?.coverId)
-  const colorMode = useSubjectColorMode()
+  const { byId: shownById } = useSubjects()
   const confirm = useConfirm()
 
   if (subject === undefined) return null
@@ -44,7 +43,7 @@ export default function SubjectDetail() {
     return <Empty action={<Link to="/faecher"><Button>Zu den Fächern</Button></Link>}>Dieses Fach gibt es nicht mehr.</Empty>
   }
 
-  const tint = displaySubjectColor(subject.color, colorMode)
+  const tint = shownById.get(subjectId)?.color ?? subject.color
   const avg = weightedAverage(subject, grades)
   const projected = projectedGrade(avg)
   const sum = weightSum(subject)
