@@ -1,0 +1,132 @@
+@import 'tailwindcss';
+
+/* Dark mode follows the system unless the user picks one in Einstellungen (data-theme on <html>). */
+@custom-variant dark (&:where([data-theme='dark'], [data-theme='dark'] *));
+
+:root {
+  --paper: #f3f6fa;
+  --surface: #ffffff;
+  --sunken: #e9eef5;
+  --ink: #13254a;
+  --ink-2: #4d5d7a;
+  --ink-3: #7d8aa3;
+  --line: #d6dfeb;
+  --grid: #e3e9f2;
+  --brass: #9a6b14;
+  --brass-soft: #f6ead0;
+  --danger: #c0352b;
+  --danger-soft: #fbe5e2;
+  --ok: #1f8a4c;
+  color-scheme: light;
+}
+
+:root[data-theme='dark'] {
+  --paper: #0b1322;
+  --surface: #131e35;
+  --sunken: #0f182b;
+  --ink: #e4eaf4;
+  --ink-2: #a3b1c9;
+  --ink-3: #6f7f9b;
+  --line: #24345a;
+  --grid: #131d33;
+  --brass: #dcae55;
+  --brass-soft: #33290f;
+  --danger: #f0786d;
+  --danger-soft: #3a1a1a;
+  --ok: #4cc27f;
+  color-scheme: dark;
+}
+
+@theme inline {
+  --color-paper: var(--paper);
+  --color-surface: var(--surface);
+  --color-sunken: var(--sunken);
+  --color-ink: var(--ink);
+  --color-ink-2: var(--ink-2);
+  --color-ink-3: var(--ink-3);
+  --color-line: var(--line);
+  --color-brass: var(--brass);
+  --color-brass-soft: var(--brass-soft);
+  --color-danger: var(--danger);
+  --color-danger-soft: var(--danger-soft);
+  --color-ok: var(--ok);
+  --font-sans: 'Archivo', ui-sans-serif, system-ui, -apple-system, sans-serif;
+}
+
+html,
+body {
+  background-color: var(--paper);
+  color: var(--ink);
+  font-family: var(--font-sans);
+  -webkit-text-size-adjust: 100%;
+  -webkit-tap-highlight-color: transparent;
+  overscroll-behavior-y: none;
+}
+
+body {
+  /* Millimeterpapier: a 5 mm and 1 cm grid, barely there */
+  background-image:
+    linear-gradient(var(--grid) 1px, transparent 1px),
+    linear-gradient(90deg, var(--grid) 1px, transparent 1px);
+  background-size: 28px 28px;
+  background-attachment: fixed;
+  min-height: 100dvh;
+}
+
+/* Headings use Archivo's wide cut — the one typographic flourish in the app. */
+.display {
+  font-stretch: 125%;
+  font-weight: 700;
+  letter-spacing: -0.01em;
+  line-height: 1.05;
+}
+
+.tabular {
+  font-variant-numeric: tabular-nums;
+}
+
+:focus-visible {
+  outline: 2px solid var(--brass);
+  outline-offset: 2px;
+  border-radius: 6px;
+}
+
+input,
+select,
+textarea {
+  font-size: 16px; /* stops iOS from zooming into fields */
+}
+
+.safe-bottom {
+  padding-bottom: env(safe-area-inset-bottom);
+}
+.safe-top {
+  padding-top: env(safe-area-inset-top);
+}
+
+@keyframes sheet-in {
+  from {
+    transform: translateY(24px);
+    opacity: 0;
+  }
+}
+@keyframes fade-in {
+  from {
+    opacity: 0;
+  }
+}
+.sheet-in {
+  animation: sheet-in 180ms ease-out;
+}
+.fade-in {
+  animation: fade-in 150ms ease-out;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    transition-duration: 0.01ms !important;
+  }
+}
