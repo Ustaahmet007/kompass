@@ -36,8 +36,7 @@ const SUBJECTS: Omit<Subject, 'id'>[] = [
   { short: 'GGPg', name: 'Geografie', teacher: 'MAM', room: 'R115', color: '#65a30d', categories: cats([['Test', 60], ['Mitarbeit', 40]]) },
   { short: 'GGPh', name: 'Geschichte', teacher: 'RJ', room: 'R115', color: '#4d7c0f', categories: cats([['Test', 60], ['Mitarbeit', 40]]) },
   { short: 'BSPK', name: 'Bewegung & Sport', teacher: 'ROE', room: 'BewR1', color: '#dc2626', categories: cats([['Mitarbeit', 100]]) },
-  { short: 'RISL', name: 'Religion', teacher: 'BL', color: '#9333ea', categories: cats([['Mitarbeit', 100]]) },
-  { short: 'ETH', name: 'Ethik', teacher: 'HUO', room: 'R116', color: '#db2777', categories: cats([['Mitarbeit', 100]]) },
+  { short: 'RISL', name: 'Islam', teacher: 'BL', color: '#9333ea', categories: cats([['Mitarbeit', 100]]) },
 ]
 
 // [day (0 = Mo), first Stunde, length, subject short]
@@ -45,7 +44,7 @@ const TIMETABLE: [number, number, number, string][] = [
   [0, 1, 1, 'HWE'], [0, 2, 1, 'E'], [0, 3, 2, 'AM'], [0, 5, 2, 'BSPK'],
   [1, 1, 1, 'RISL'], [1, 2, 1, 'KSN'], [1, 3, 3, 'PBE'], [1, 7, 1, 'PBE'], [1, 8, 4, 'PBE'],
   [2, 1, 1, 'KSN'], [2, 2, 2, 'HWL'], [2, 4, 2, 'FSST'], [2, 7, 1, 'DIC1'], [2, 8, 3, 'LA'],
-  [3, 1, 1, 'GGPg'], [3, 2, 2, 'MTRS'], [3, 4, 1, 'E'], [3, 5, 1, 'AM'], [3, 7, 1, 'D'], [3, 8, 1, 'GGPh'], [3, 9, 2, 'ETH'],
+  [3, 1, 1, 'GGPg'], [3, 2, 2, 'MTRS'], [3, 4, 1, 'E'], [3, 5, 1, 'AM'], [3, 7, 1, 'D'], [3, 8, 1, 'GGPh'],
   [4, 1, 2, 'DIC1'], [4, 3, 2, 'NW2p'], [4, 5, 1, 'D'],
 ]
 

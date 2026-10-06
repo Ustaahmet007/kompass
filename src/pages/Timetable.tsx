@@ -80,7 +80,7 @@ export default function Timetable() {
 
       {/* Wide: full week grid */}
       <div className="hidden overflow-x-auto rounded-xl border border-line bg-surface p-2 md:block">
-        <div className="grid min-w-[640px]" style={{ gridTemplateColumns: '4.25rem repeat(5, minmax(0, 1fr))', gridTemplateRows: `2.5rem ${template}` }}>
+        <div className="grid min-w-[640px]" style={{ gridTemplateColumns: '4.5rem repeat(5, minmax(0, 1fr))', gridTemplateRows: `2.5rem ${template}` }}>
           <div />
           {DAYS.map((d) => (
             <div key={d} className={cx('flex items-center justify-center rounded-md text-sm font-semibold', showingCurrentWeek && d === todayIdx ? 'bg-ink text-paper' : 'text-ink-2')} style={{ gridColumn: d + 2, gridRow: 1 }}>
@@ -95,6 +95,7 @@ export default function Timetable() {
                 <div className={cx('flex flex-col items-end justify-center pr-2 text-xs leading-tight tabular', active ? 'text-brass' : 'text-ink-3')} style={{ gridColumn: 1, gridRow: r }}>
                   <span className={cx('text-sm font-bold', active ? 'text-brass' : 'text-ink-2')}>{p.nr}.</span>
                   <span>{p.start}</span>
+                  <span>{p.end}</span>
                 </div>
                 {DAYS.map((d) => (
                   <button
