@@ -94,7 +94,7 @@ export default function SettingsPage() {
             <div className="space-y-3 px-4 pt-1 pb-4">
               {demo ? (
                 <>
-                  <p className="text-ink-2">Die Beispiel-Fächer, -Noten und -Aufgaben sind noch da. Fächer, die du schon selbst verwendest, bleiben erhalten.</p>
+                  <p className="text-ink-2">Die Beispiel-Noten, -Aufgaben und -Prüfungen sind noch da. Deine Fächer und dein Stundenplan bleiben erhalten.</p>
                   <Button variant="danger" onClick={async () => { if (await confirm.ask('Alle Demodaten werden gelöscht.', 'Demodaten löschen')) await deleteDemo() }}>
                     <Trash2 size={18} /> Demodaten löschen
                   </Button>

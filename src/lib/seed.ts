@@ -1,48 +1,52 @@
-import { db, DEFAULT_CATEGORIES, getSetting, setSetting, type Lesson, type Period, type Subject } from '../db'
+import { db, DEFAULT_CATEGORIES, getSetting, setSetting, type Category, type Period, type Subject } from '../db'
 import { addDays, mondayOf, todayISO, weekdayIndex } from './date'
 
-/**
- * Placeholder Stundenraster — edit it under Einstellungen.
- * Breaks show up as gaps between the end of one Stunde and the start of the next.
- */
+/** Stundenraster HTL Rankweil (from WebUntis, 3AHEL). Edit under Einstellungen. */
 export const DEFAULT_PERIODS: Omit<Period, 'id'>[] = [
-  { nr: 1, start: '07:45', end: '08:35' },
-  { nr: 2, start: '08:35', end: '09:25' },
-  { nr: 3, start: '09:40', end: '10:30' },
-  { nr: 4, start: '10:30', end: '11:20' },
-  { nr: 5, start: '11:30', end: '12:20' },
-  { nr: 6, start: '12:20', end: '13:10' },
-  { nr: 7, start: '13:10', end: '14:00' },
-  { nr: 8, start: '14:00', end: '14:50' },
-  { nr: 9, start: '14:50', end: '15:40' },
-  { nr: 10, start: '15:50', end: '16:40' },
-  { nr: 11, start: '16:40', end: '17:30' },
+  { nr: 1, start: '08:05', end: '08:55' },
+  { nr: 2, start: '09:00', end: '09:50' },
+  { nr: 3, start: '10:00', end: '10:50' },
+  { nr: 4, start: '10:55', end: '11:45' },
+  { nr: 5, start: '11:45', end: '12:35' },
+  { nr: 6, start: '12:35', end: '13:25' },
+  { nr: 7, start: '13:25', end: '14:15' },
+  { nr: 8, start: '14:20', end: '15:10' },
+  { nr: 9, start: '15:20', end: '16:10' },
+  { nr: 10, start: '16:15', end: '17:05' },
+  { nr: 11, start: '17:10', end: '18:00' },
 ]
 
-const cats = () => DEFAULT_CATEGORIES.map((c) => ({ ...c }))
+const cats = (list?: [string, number][]): Category[] =>
+  list ? list.map(([name, weight]) => ({ name, weight })) : DEFAULT_CATEGORIES.map((c) => ({ ...c }))
 
-const DEMO_SUBJECTS: Omit<Subject, 'id'>[] = [
-  { short: 'D', name: 'Deutsch', color: '#c2410c', categories: cats() },
-  { short: 'E', name: 'Englisch', color: '#7c3aed', categories: cats() },
-  { short: 'AM', name: 'Angewandte Mathematik', color: '#2563eb', categories: cats() },
-  { short: 'DIC', name: 'DIC – Mikrocontroller', color: '#0d9488', categories: cats() },
-  { short: 'MTRS', name: 'MTRS', color: '#be185d', categories: cats() },
-  { short: 'HWE', name: 'Hardwareentwicklung', color: '#ca8a04', categories: [{ name: 'Projekt', weight: 50 }, { name: 'Test', weight: 40 }, { name: 'Mitarbeit', weight: 10 }] },
-  { short: 'FSST', name: 'Fachspezifische Softwaretechnik', color: '#4f46e5', categories: cats() },
-  { short: 'PH', name: 'Physik', color: '#0284c7', categories: [{ name: 'Test', weight: 70 }, { name: 'Mitarbeit', weight: 30 }] },
-  { short: 'GGP', name: 'Geografie, Geschichte & Politik', color: '#65a30d', categories: [{ name: 'Test', weight: 60 }, { name: 'Mitarbeit', weight: 40 }] },
-  { short: 'BESP', name: 'Bewegung & Sport', color: '#dc2626', categories: [{ name: 'Mitarbeit', weight: 100 }] },
-  { short: 'WST', name: 'Werkstätte', color: '#57534e', categories: [{ name: 'Werkstück', weight: 70 }, { name: 'Mitarbeit', weight: 30 }] },
-  { short: 'LAB', name: 'Laboratorium', color: '#0f766e', categories: [{ name: 'Protokoll', weight: 60 }, { name: 'Mitarbeit', weight: 40 }] },
+/** 3AHEL subjects, short codes as WebUntis shows them. */
+const SUBJECTS: Omit<Subject, 'id'>[] = [
+  { short: 'D', name: 'Deutsch', teacher: 'FI', room: 'R115', color: '#c2410c', categories: cats() },
+  { short: 'E', name: 'Englisch', teacher: 'MAJ', color: '#7c3aed', categories: cats() },
+  { short: 'AM', name: 'Angewandte Mathematik', teacher: 'PRI', room: 'R115', color: '#2563eb', categories: cats() },
+  { short: 'DIC1', name: 'DIC – Mikrocontroller', teacher: 'PAT', room: 'R115', color: '#0d9488', categories: cats() },
+  { short: 'MTRS', name: 'MTRS', teacher: 'STU', room: 'R115', color: '#be185d', categories: cats() },
+  { short: 'HWE', name: 'Hardwareentwicklung', teacher: 'SOT', room: 'R115', color: '#ca8a04', categories: cats() },
+  { short: 'HWL', name: 'HW-Labor', teacher: 'LAP', room: 'C208', color: '#a16207', categories: cats([['Protokoll', 60], ['Mitarbeit', 40]]) },
+  { short: 'FSST', name: 'Fachspezifische Softwaretechnik', teacher: 'LAP', room: 'C208', color: '#4f46e5', categories: cats() },
+  { short: 'KSN', name: 'KSN', teacher: 'FAH', room: 'R115', color: '#0284c7', categories: cats() },
+  { short: 'NW2p', name: 'Physik', teacher: 'SCE', room: 'Ph108', color: '#0891b2', categories: cats([['Test', 70], ['Mitarbeit', 30]]) },
+  { short: 'LA', name: 'Laboratorium', teacher: 'PAT', room: 'WL32', color: '#0f766e', categories: cats([['Protokoll', 60], ['Mitarbeit', 40]]) },
+  { short: 'PBE', name: 'Werkstätte (PBE)', teacher: 'KRF', room: 'WE13', color: '#57534e', categories: cats([['Werkstück', 70], ['Mitarbeit', 30]]) },
+  { short: 'GGPg', name: 'Geografie', teacher: 'MAM', room: 'R115', color: '#65a30d', categories: cats([['Test', 60], ['Mitarbeit', 40]]) },
+  { short: 'GGPh', name: 'Geschichte', teacher: 'RJ', room: 'R115', color: '#4d7c0f', categories: cats([['Test', 60], ['Mitarbeit', 40]]) },
+  { short: 'BSPK', name: 'Bewegung & Sport', teacher: 'ROE', room: 'BewR1', color: '#dc2626', categories: cats([['Mitarbeit', 100]]) },
+  { short: 'RISL', name: 'Religion', teacher: 'BL', color: '#9333ea', categories: cats([['Mitarbeit', 100]]) },
+  { short: 'ETH', name: 'Ethik', teacher: 'HUO', room: 'R116', color: '#db2777', categories: cats([['Mitarbeit', 100]]) },
 ]
 
-// [day, period, length, short, week]
-const DEMO_TIMETABLE: [number, number, number, string, Lesson['week']][] = [
-  [0, 1, 2, 'AM', 'alle'], [0, 3, 1, 'E', 'alle'], [0, 4, 1, 'D', 'alle'], [0, 5, 2, 'DIC', 'alle'], [0, 8, 4, 'WST', 'alle'],
-  [1, 1, 2, 'FSST', 'alle'], [1, 3, 1, 'MTRS', 'alle'], [1, 4, 1, 'PH', 'alle'], [1, 5, 1, 'GGP', 'alle'], [1, 6, 1, 'D', 'alle'], [1, 8, 2, 'BESP', 'alle'],
-  [2, 1, 4, 'LAB', 'A'], [2, 1, 2, 'HWE', 'B'], [2, 3, 2, 'FSST', 'B'], [2, 5, 1, 'E', 'alle'], [2, 6, 1, 'AM', 'alle'],
-  [3, 1, 1, 'DIC', 'alle'], [3, 2, 1, 'MTRS', 'alle'], [3, 3, 2, 'HWE', 'alle'], [3, 5, 1, 'PH', 'alle'], [3, 6, 1, 'GGP', 'alle'], [3, 8, 2, 'FSST', 'alle'],
-  [4, 1, 1, 'D', 'alle'], [4, 2, 1, 'E', 'alle'], [4, 3, 1, 'AM', 'alle'], [4, 4, 1, 'FSST', 'alle'],
+// [day (0 = Mo), first Stunde, length, subject short]
+const TIMETABLE: [number, number, number, string][] = [
+  [0, 1, 1, 'HWE'], [0, 2, 1, 'E'], [0, 3, 2, 'AM'], [0, 5, 2, 'BSPK'],
+  [1, 1, 1, 'RISL'], [1, 2, 1, 'KSN'], [1, 3, 3, 'PBE'], [1, 7, 1, 'PBE'], [1, 8, 4, 'PBE'],
+  [2, 1, 1, 'KSN'], [2, 2, 2, 'HWL'], [2, 4, 2, 'FSST'], [2, 7, 1, 'DIC1'], [2, 8, 3, 'LA'],
+  [3, 1, 1, 'GGPg'], [3, 2, 2, 'MTRS'], [3, 4, 1, 'E'], [3, 5, 1, 'AM'], [3, 7, 1, 'D'], [3, 8, 1, 'GGPh'], [3, 9, 2, 'ETH'],
+  [4, 1, 2, 'DIC1'], [4, 3, 2, 'NW2p'], [4, 5, 1, 'D'],
 ]
 
 export async function ensureDefaults() {
@@ -51,79 +55,81 @@ export async function ensureDefaults() {
     await setSetting('abReference', mondayOf(todayISO()))
   }
   if (!(await getSetting('seeded', false))) {
+    await seedTimetable()
     await seedDemo()
     await setSetting('seeded', true)
   }
 }
 
+/** Real subjects and Stundenplan — these are not demo data. */
+export async function seedTimetable() {
+  await db.transaction('rw', [db.subjects, db.lessons], async () => {
+    const ids: Record<string, number> = {}
+    for (const s of SUBJECTS) ids[s.short] = (await db.subjects.add({ ...s })) as number
+    await db.lessons.bulkAdd(TIMETABLE.map(([day, period, length, short]) => ({ day, period, length, week: 'alle' as const, subjectId: ids[short] })))
+  })
+}
+
+/** Sample tasks, grades and exams so the app isn't empty. Skips anything whose subject no longer exists. */
 export async function seedDemo() {
   const t = todayISO()
   // Demo dates land on school days only.
   const wd = (n: number) => { const d = addDays(t, n); const w = weekdayIndex(d); return w === 5 ? addDays(d, 2) : w === 6 ? addDays(d, 1) : d }
-  await db.transaction('rw', [db.subjects, db.lessons, db.tasks, db.grades, db.exams], async () => {
+  await db.transaction('rw', [db.subjects, db.tasks, db.grades, db.exams], async () => {
     const ids: Record<string, number> = {}
-    for (const s of DEMO_SUBJECTS) ids[s.short] = (await db.subjects.add({ ...s, demo: true })) as number
-
-    await db.lessons.bulkAdd(
-      DEMO_TIMETABLE.map(([day, period, length, short, week]) => ({
-        day, period, length, week, subjectId: ids[short], demo: true,
-      })),
-    )
+    for (const s of await db.subjects.toArray()) ids[s.short] = s.id!
+    const has = (short: string) => ids[short] != null
 
     const now = Date.now()
+    const task = (short: string, title: string, due: string | null, priority: 1 | 2 | 3, status: 'offen' | 'inArbeit' | 'erledigt' = 'offen') =>
+      has(short) ? [{ title, subjectId: ids[short], due, priority, status, createdAt: now, doneAt: status === 'erledigt' ? now : null, demo: true }] : []
     await db.tasks.bulkAdd([
-      { title: 'Laborprotokoll Operationsverstärker', subjectId: ids.LAB, due: addDays(t, 1), priority: 1, status: 'inArbeit', createdAt: now, demo: true },
-      { title: 'Hausübung Timer0 CTC-Modus', subjectId: ids.DIC, due: t, priority: 1, status: 'offen', createdAt: now, demo: true },
-      { title: 'Vokabeln Unit 3', subjectId: ids.E, due: wd(3), priority: 3, status: 'offen', createdAt: now, demo: true },
-      { title: 'Kommentar überarbeiten', subjectId: ids.D, due: addDays(t, -1), priority: 2, status: 'offen', createdAt: now, demo: true },
-      { title: 'Schaltplan Audioverstärker in KiCad', subjectId: ids.HWE, due: wd(6), priority: 2, status: 'offen', createdAt: now, demo: true },
-      { title: 'WPF-Übung: Datenbindung', subjectId: ids.FSST, due: wd(4), priority: 2, status: 'offen', createdAt: now, demo: true },
-      { title: 'Turnsackerl mitnehmen', subjectId: ids.BESP, due: addDays(t, 1), priority: 3, status: 'offen', createdAt: now, demo: true },
-      { title: 'Referat Thema auswählen', subjectId: ids.GGP, due: addDays(t, -6), priority: 3, status: 'erledigt', createdAt: now, doneAt: now, demo: true },
+      ...task('LA', 'Laborprotokoll Operationsverstärker', wd(1), 1, 'inArbeit'),
+      ...task('DIC1', 'Hausübung Timer0 CTC-Modus', t, 1),
+      ...task('E', 'Vokabeln Unit 3', wd(3), 3),
+      ...task('D', 'Kommentar überarbeiten', addDays(t, -1), 2),
+      ...task('HWE', 'Schaltplan Audioverstärker in KiCad', wd(6), 2),
+      ...task('FSST', 'WPF-Übung: Datenbindung', wd(4), 2),
+      ...task('BSPK', 'Turnsackerl mitnehmen', wd(1), 3),
+      ...task('GGPh', 'Referat Thema auswählen', addDays(t, -6), 3, 'erledigt'),
     ])
 
-    const g = (short: string, category: string, value: number, daysAgo: number, title?: string) => ({
-      subjectId: ids[short], category, value, date: addDays(t, -daysAgo), title, demo: true,
-    })
+    const g = (short: string, category: string, value: number, daysAgo: number, title?: string) =>
+      has(short) ? [{ subjectId: ids[short], category, value, date: addDays(t, -daysAgo), title, demo: true }] : []
     await db.grades.bulkAdd([
-      g('AM', 'Test', 3, 24, 'Vektoren'), g('AM', 'Mitarbeit', 2, 15), g('AM', 'Schularbeit', 3, 9, '1. Schularbeit'), g('AM', 'Test', 2, 3, 'Matrizen'),
-      g('DIC', 'Test', 2, 20, 'Ports & Interrupts'), g('DIC', 'Mitarbeit', 1, 12), g('DIC', 'Test', 1, 4, 'Timer'),
-      g('D', 'Mitarbeit', 2, 18), g('D', 'Schularbeit', 4, 7, '1. Schularbeit – Kommentar'),
-      g('E', 'Test', 2, 21, 'Reading'), g('E', 'Mitarbeit', 2, 10),
-      g('PH', 'Test', 3, 14, 'Kinematik'), g('PH', 'Mitarbeit', 2, 5),
-      g('FSST', 'Test', 1, 16, 'C# Grundlagen'),
+      ...g('AM', 'Test', 3, 24, 'Vektoren'), ...g('AM', 'Mitarbeit', 2, 15), ...g('AM', 'Schularbeit', 3, 9, '1. Schularbeit'), ...g('AM', 'Test', 2, 3, 'Matrizen'),
+      ...g('DIC1', 'Test', 2, 20, 'Ports & Interrupts'), ...g('DIC1', 'Mitarbeit', 1, 12), ...g('DIC1', 'Test', 1, 4, 'Timer'),
+      ...g('D', 'Mitarbeit', 2, 18), ...g('D', 'Schularbeit', 4, 7, '1. Schularbeit – Kommentar'),
+      ...g('E', 'Test', 2, 21, 'Reading'), ...g('E', 'Mitarbeit', 2, 10),
+      ...g('NW2p', 'Test', 3, 14, 'Kinematik'), ...g('NW2p', 'Mitarbeit', 2, 5),
+      ...g('FSST', 'Test', 1, 16, 'C# Grundlagen'),
     ])
 
+    const exam = (short: string, date: string, kind: 'Schularbeit' | 'Test' | 'Abgabe', topic: string) =>
+      has(short) ? [{ subjectId: ids[short], date, kind, topic, demo: true }] : []
     await db.exams.bulkAdd([
-      { subjectId: ids.E, date: wd(5), kind: 'Schularbeit', topic: 'Unit 1–3, Writing: Opinion essay', demo: true },
-      { subjectId: ids.DIC, date: wd(9), kind: 'Test', topic: 'ADC und Analogkomparator', demo: true },
-      { subjectId: ids.AM, date: wd(16), kind: 'Schularbeit', topic: 'Matrizen, Gleichungssysteme', demo: true },
-      { subjectId: ids.MTRS, date: wd(12), kind: 'Test', topic: 'Messbrücken', demo: true },
-      { subjectId: ids.HWE, date: wd(25), kind: 'Abgabe', topic: 'Layout-Projekt Audioverstärker', demo: true },
+      ...exam('E', wd(5), 'Schularbeit', 'Unit 1–3, Writing: Opinion essay'),
+      ...exam('DIC1', wd(9), 'Test', 'ADC und Analogkomparator'),
+      ...exam('AM', wd(16), 'Schularbeit', 'Matrizen, Gleichungssysteme'),
+      ...exam('MTRS', wd(12), 'Test', 'Messbrücken'),
+      ...exam('HWE', wd(25), 'Abgabe', 'Layout-Projekt Audioverstärker'),
     ])
   })
 }
 
 export async function deleteDemo() {
-  await db.transaction('rw', [db.subjects, db.lessons, db.tasks, db.grades, db.exams], async () => {
-    await db.lessons.filter((r) => !!r.demo).delete()
+  await db.transaction('rw', [db.tasks, db.grades, db.exams], async () => {
     await db.tasks.filter((r) => !!r.demo).delete()
     await db.grades.filter((r) => !!r.demo).delete()
     await db.exams.filter((r) => !!r.demo).delete()
-    // Keep a demo subject if your own entries already use it — it just stops counting as demo.
-    for (const s of await db.subjects.filter((r) => !!r.demo).toArray()) {
-      const id = s.id!
-      const used =
-        (await db.lessons.where('subjectId').equals(id).count()) +
-        (await db.tasks.where('subjectId').equals(id).count()) +
-        (await db.grades.where('subjectId').equals(id).count()) +
-        (await db.exams.where('subjectId').equals(id).count())
-      if (used) await db.subjects.update(id, { demo: false })
-      else await db.subjects.delete(id)
-    }
   })
 }
 
 export async function hasDemo(): Promise<boolean> {
-  return (await db.subjects.filter((s) => !!s.demo).count()) > 0
+  return (
+    (await db.tasks.filter((r) => !!r.demo).count()) +
+      (await db.grades.filter((r) => !!r.demo).count()) +
+      (await db.exams.filter((r) => !!r.demo).count()) >
+    0
+  )
 }
