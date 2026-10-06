@@ -121,7 +121,9 @@ export default function Timer() {
   const subjectRows = [...bySubject.entries()].sort((a, b) => b[1] - a[1])
   const hm = (m: number) => (m >= 60 ? `${Math.floor(m / 60)} h ${m % 60 ? `${m % 60} min` : ''}`.trim() : `${m} min`)
 
-  const progress = 1 - Math.max(0, remaining) / total
+  // Under a second in counts as not started (a quick tap on Start/Pause).
+  const started = remaining < total - 1000
+  const progress = started || state.running ? 1 - Math.max(0, remaining) / total : 0
   const R = 120
   const C = 2 * Math.PI * R
   const focus = state.phase === 'focus'
@@ -153,11 +155,11 @@ export default function Timer() {
             {state.running ? (
               <Button variant="primary" className="min-w-36" onClick={pause}><Pause size={18} /> Pause</Button>
             ) : (
-              <Button variant="primary" className="min-w-36" onClick={start}><Play size={18} /> {remaining < total ? 'Weiter' : 'Start'}</Button>
+              <Button variant="primary" className="min-w-36" onClick={start}><Play size={18} /> {started ? 'Weiter' : 'Start'}</Button>
             )}
-            {focus && remaining < total && <Button onClick={stopEarly}><Square size={16} /> Beenden</Button>}
+            {focus && started && <Button onClick={stopEarly}><Square size={16} /> Beenden</Button>}
             {!focus && <Button onClick={skip}><SkipForward size={18} /> Pause überspringen</Button>}
-            {!state.running && remaining < total && <Button variant="ghost" onClick={reset} aria-label="Zurücksetzen"><RotateCcw size={18} /></Button>}
+            {!state.running && started && <Button variant="ghost" onClick={reset} aria-label="Zurücksetzen"><RotateCcw size={18} /></Button>}
           </div>
           <div className="mt-6 w-full max-w-sm">
             <Field label="Wofür lernst du?">
