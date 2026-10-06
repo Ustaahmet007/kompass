@@ -67,7 +67,7 @@ export function ReminderSettings() {
         <p className="text-ink-2">Push-Mitteilungen am Abend: was morgen fällig ist, Prüfungen und deine Schicht. Kommen auch, wenn Kompass zu ist.</p>
 
         {!signedIn ? (
-          <p className="rounded-lg bg-sunken px-3 py-2 text-sm">Dafür brauchst du die Synchronisierung: melde dich oben an.</p>
+          <p className="rounded-lg bg-sunken px-3 py-2 text-sm">Dafür brauchst du die Synchronisierung: oben anmelden und den Sync starten (Hochladen bzw. Herunterladen).</p>
         ) : needsInstall ? (
           <p className="rounded-lg bg-sunken px-3 py-2 text-sm">Auf dem iPad gehen Mitteilungen nur in der installierten App: in Safari auf <b>Teilen → Zum Home-Bildschirm</b>, dann Kompass vom Home-Bildschirm öffnen und hier einschalten.</p>
         ) : !pushSupported() ? (
