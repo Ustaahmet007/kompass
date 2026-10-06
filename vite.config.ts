@@ -36,6 +36,9 @@ export default defineConfig({
         ],
       },
       workbox: {
+        // Take over open pages right away instead of waiting until every Kompass tab is closed.
+        skipWaiting: true,
+        clientsClaim: true,
         globPatterns: ['**/*.{js,css,html,svg,png}', '**/*-latin-*.woff2'],
         navigateFallback: `${base}index.html`,
       },

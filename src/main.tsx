@@ -16,7 +16,13 @@ registerSW({
   immediate: true,
   onRegisteredSW(_url, reg) {
     if (!reg) return
-    const check = () => reg.update().catch(() => {})
+    // Safety net for older service workers that wait for a message before switching.
+    const nudge = () => reg.waiting?.postMessage({ type: 'SKIP_WAITING' })
+    nudge()
+    reg.addEventListener('updatefound', () => {
+      reg.installing?.addEventListener('statechange', nudge)
+    })
+    const check = () => reg.update().then(nudge).catch(() => {})
     setInterval(check, 30 * 60 * 1000)
     document.addEventListener('visibilitychange', () => document.visibilityState === 'visible' && check())
   },
