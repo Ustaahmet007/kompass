@@ -102,7 +102,7 @@ export async function uploadReminders(force = false) {
     : []
   const hash = JSON.stringify(list)
   if (!force && hash === lastHash) return
-  const { error: delErr } = await supabase.from('reminders').delete().is('sent_at', null).not('key', 'like', 'test:%')
+  const { error: delErr } = await supabase.from('reminders').delete().is('sent_at', null).not('key', 'like', 'test:%').neq('key', 'timer')
   if (delErr) throw new Error(delErr.message)
   if (list.length) {
     const { error } = await supabase.from('reminders').upsert(list, { onConflict: 'user_id,key', ignoreDuplicates: true })
@@ -172,4 +172,37 @@ export async function testReminder() {
   const reg = await navigator.serviceWorker.ready
   await reg.showNotification('Kompass', { body: 'So sehen Erinnerungen aus.', icon: `${import.meta.env.BASE_URL}icon-192.png`, tag: 'kompass-test' })
   await supabase!.from('reminders').upsert({ key: `test:${Date.now()}`, fire_at: new Date().toISOString(), title: 'Kompass-Test', body: 'Erinnerungen kommen an, auch wenn die App zu ist.', url: '#/' })
+}
+
+// ---- Lerntimer ------------------------------------------------------------------------------
+const TIMER_KEY = 'kompass-timer-push'
+/** Push when the running focus block or break ends, so Kompass doesn't have to stay open. */
+export async function syncTimerPush(t: { running: boolean; endsAt: number | null; phase: 'focus' | 'pause'; breakMin: number; focusMin: number }) {
+  if (!supabase) return
+  const want = t.running && t.endsAt && t.endsAt > Date.now() ? `${t.phase}:${t.endsAt}` : ''
+  const had = localStorage.getItem(TIMER_KEY) ?? ''
+  if (want === had) return
+  const { data: auth } = await supabase.auth.getSession()
+  if (!auth.session) return
+  try {
+    if (want) {
+      const focus = t.phase === 'focus'
+      await supabase.from('reminders').upsert(
+        {
+          key: 'timer',
+          fire_at: new Date(t.endsAt!).toISOString(),
+          title: focus ? 'Fokus vorbei 🎉' : 'Pause vorbei',
+          body: focus ? `Gut gemacht. Jetzt ${t.breakMin} min Pause.` : `Weiter geht's: ${t.focusMin} min Fokus. Öffne Kompass zum Starten.`,
+          url: '#/lerntimer',
+          sent_at: null,
+        },
+        { onConflict: 'user_id,key' },
+      )
+    } else {
+      await supabase.from('reminders').delete().eq('key', 'timer').is('sent_at', null)
+    }
+    localStorage.setItem(TIMER_KEY, want)
+  } catch {
+    /* offline: try again on the next change */
+  }
 }

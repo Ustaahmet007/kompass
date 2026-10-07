@@ -4,6 +4,7 @@ import { Pause, Play, RotateCcw, SkipForward, Square } from 'lucide-react'
 import { db, setSetting, type StudySession } from '../db'
 import { DAY_SHORT, addDays, mondayOf, todayISO } from '../lib/date'
 import { useNow, useSetting, useSubjects, useToday } from '../lib/hooks'
+import { syncTimerPush } from '../lib/reminders'
 import { DEFAULT_MUSIC, MusicPanel, TimerBackdrop, musicPause, musicPlay, type MusicSettings } from '../components/Music'
 import { Button, Field, PageHeader, Panel, Segmented, SubjectSelect, SubjectTag, cx } from '../components/ui'
 
@@ -82,6 +83,11 @@ export default function Timer() {
       document.title = 'Kompass'
     }
   }, [remaining, state.running, state.phase])
+
+  // Push when time is up (works with Kompass closed, if Erinnerungen are on for this device).
+  useEffect(() => {
+    void syncTimerPush(state)
+  }, [state])
 
   const start = () => {
     // Started from the tap, so the browser lets the player begin.
@@ -166,7 +172,7 @@ export default function Timer() {
               <SubjectSelect subjects={subjects} value={state.subjectId} onChange={(v) => set({ subjectId: v })} allowNone />
             </Field>
           </div>
-          <p className="mt-4 max-w-sm text-center text-sm text-ink-3">Der Timer läuft weiter, auch wenn du die App schließt. Ton kommt nur, wenn Kompass offen ist.</p>
+          <p className="mt-4 max-w-sm text-center text-sm text-ink-3">Der Timer läuft weiter, auch wenn du die App schließt. Ist Kompass zu, kommt eine Mitteilung, sobald die Zeit um ist (Erinnerungen in den Einstellungen einschalten).</p>
           </div>
         </Panel>
 
