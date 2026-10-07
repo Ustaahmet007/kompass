@@ -2,7 +2,7 @@ import { db } from '../db'
 import { todayISO } from './date'
 import { blobToDataUrl, dataUrlToBlob } from './images'
 
-const TABLES = ['subjects', 'periods', 'lessons', 'tasks', 'grades', 'exams', 'settings', 'notes', 'sessions', 'plans', 'chat', 'usage', 'images', 'shifts', 'files'] as const
+const TABLES = ['subjects', 'periods', 'lessons', 'tasks', 'grades', 'exams', 'settings', 'notes', 'sessions', 'plans', 'chat', 'usage', 'images', 'shifts', 'files', 'lessonLogs'] as const
 
 /** Never leaves the device: not exported, and kept when a backup is restored. */
 const PRIVATE_SETTINGS = ['apiKey', 'elevenKey']

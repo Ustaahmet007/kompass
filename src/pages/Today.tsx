@@ -3,9 +3,10 @@ import { useImageUrl } from '../lib/images'
 import { FramedImage } from '../components/Picture'
 import { BriefingButton, BriefingCard, useBriefing } from '../components/BriefingButton'
 import { ShiftRow, ShiftSheet } from '../components/shifts'
+import { LessonLogSheet, useLessonLogs } from '../components/lessonLog'
 import { Link } from 'react-router-dom'
 import { useLiveQuery } from 'dexie-react-hooks'
-import { Plus } from 'lucide-react'
+import { ClipboardList, NotebookPen, Plus } from 'lucide-react'
 import { db, type Lesson, type Shift, type StudyPlan, type Task } from '../db'
 import { addDays, daysBetween, formatDate, formatLong, minutesOf, mondayOf, weekKindFor, weekdayIndex, DAY_NAMES } from '../lib/date'
 import { lessonSpan, lessonsForDate, useNow, usePeriods, useSetting, useSubjects, useToday } from '../lib/hooks'
@@ -27,6 +28,7 @@ export default function Today() {
   const upcomingShifts = shifts.slice(0, 3)
   const [editShift, setEditShift] = useState<Shift | null | undefined>(undefined)
   const [edit, setEdit] = useState<Task | null | undefined>(undefined)
+  const [logFor, setLogFor] = useState<{ lesson: Lesson; date: string } | null>(null)
   const confirm = useConfirm()
 
   const todays = lessonsForDate(lessons, today, abRef)
@@ -46,6 +48,12 @@ export default function Today() {
     }
   }
   const showingToday = previewDate === today
+  const logsToday = useLessonLogs(today)
+  const logsPreview = useLessonLogs(previewDate)
+  const startOfToday = new Date(`${today}T00:00`).getTime()
+  const newTasksFor = (subjectId: number) => tasks.filter((t) => t.subjectId === subjectId && t.createdAt >= startOfToday)
+  // One entry per subject for the end-of-day recap (double lessons and repeats merged).
+  const recap = todays.filter((l, i) => todays.findIndex((x) => x.subjectId === l.subjectId) === i)
 
   const open = tasks.filter((t) => t.status !== 'erledigt')
   const tomorrow = addDays(today, 1)
@@ -77,6 +85,33 @@ export default function Today() {
       />
 
       <div className="grid gap-5 lg:grid-cols-[minmax(0,1.25fr)_minmax(0,1fr)]">
+        <div className="flex min-w-0 flex-col gap-5">
+        {schoolOver && (
+          <Panel title="Heute im Unterricht">
+            <ul className="divide-y divide-line pb-1">
+              {recap.map((l) => {
+                const sub = byId.get(l.subjectId)
+                const log = logsToday.find((x) => x.subjectId === l.subjectId)
+                const hw = newTasksFor(l.subjectId)
+                return (
+                  <li key={l.id}>
+                    <button type="button" onClick={() => setLogFor({ lesson: l, date: today })} className="flex w-full items-start gap-3 px-4 py-2.5 text-left hover:bg-sunken">
+                      <SubjectTag subject={sub} className="mt-0.5 shrink-0" />
+                      <span className="min-w-0 flex-1">
+                        {log?.text.trim() ? <span className="block whitespace-pre-line">{log.text.trim()}</span> : <span className="block text-ink-3">Nichts notiert – tippen zum Ergänzen</span>}
+                        {hw.map((t) => (
+                          <span key={t.id} className={cx('mt-1 flex items-center gap-1.5 text-sm', t.status === 'erledigt' ? 'text-ink-3 line-through' : 'text-brass')}>
+                            <ClipboardList size={14} className="shrink-0" /> {t.title}{t.due ? ` · bis ${formatDate(t.due, { weekday: 'short', day: 'numeric', month: 'numeric' })}` : ''}
+                          </span>
+                        ))}
+                      </span>
+                    </button>
+                  </li>
+                )
+              })}
+            </ul>
+          </Panel>
+        )}
         <Panel
           title={showingToday ? 'Unterricht heute' : `Nächster Schultag · ${DAY_NAMES[weekdayIndex(previewDate)]}, ${formatDate(previewDate)}`}
           action={<Link to="/stundenplan" className="min-h-11 content-center px-1 text-sm font-medium text-brass">Ganze Woche</Link>}
@@ -86,7 +121,9 @@ export default function Today() {
           ) : (
             <Empty action={<Link to="/stundenplan"><Button>Stundenplan anlegen</Button></Link>}>Im Stundenplan ist noch nichts eingetragen.</Empty>
           )}
+          {preview.length > 0 && <p className="px-4 pb-3 text-xs text-ink-3">Tipp: Stunde antippen, um Stoff und Hausübung einzutragen.</p>}
         </Panel>
+        </div>
 
         <div className="flex flex-col gap-5">
           {upcomingShifts.length > 0 && (
@@ -160,6 +197,7 @@ export default function Today() {
       </div>
 
       <TaskSheet open={edit !== undefined} task={edit} onClose={() => setEdit(undefined)} />
+      {logFor && <LessonLogSheet key={`${logFor.lesson.id}-${logFor.date}`} lesson={logFor.lesson} date={logFor.date} onClose={() => setLogFor(null)} />}
       <ShiftSheet open={editShift !== undefined} shift={editShift} onClose={() => setEditShift(undefined)} />
       {confirm.element}
     </div>
@@ -178,6 +216,8 @@ export default function Today() {
           const past = live && nowMin >= e
           const progress = current ? (nowMin - s) / (e - s) : 0
           const subject = byId.get(l.subjectId)
+          const log = logsPreview.find((x) => x.subjectId === l.subjectId)
+          const hwCount = showingToday ? newTasksFor(l.subjectId).length : 0
           const prevEnd = i > 0 ? minutesOf(rows[i - 1].end) : null
           const gap = prevEnd != null ? s - prevEnd : 0
           let marker = null
@@ -190,11 +230,13 @@ export default function Today() {
             <li key={l.id}>
               {marker}
               {!marker && gap >= 30 && <p className="py-1 pl-[4.75rem] text-xs text-ink-3">{gap} min Pause</p>}
-              <div
+              <button
+                type="button"
+                onClick={() => setLogFor({ lesson: l, date: previewDate })}
                 className={cx(
-                  'relative my-1 flex items-stretch gap-3 overflow-hidden rounded-lg py-2.5 pr-3',
+                  'relative my-1 flex w-full items-stretch gap-3 overflow-hidden rounded-lg py-2.5 pr-3 text-left hover:bg-sunken/70',
                   current ? 'bg-sunken ring-2 ring-brass' : '',
-                  past && 'opacity-45',
+                  past && !log && 'opacity-45',
                 )}
               >
                 <div className="w-16 shrink-0 pl-2 text-right text-sm leading-tight tabular">
@@ -212,9 +254,11 @@ export default function Today() {
                     {(l.room || subject?.room) && <span>{l.room || subject?.room}</span>}
                     {current && <span className="font-semibold text-brass">läuft · noch {e - nowMin} min</span>}
                   </div>
+                  {log?.text.trim() && <p className="mt-1 line-clamp-2 text-sm text-ink-2"><NotebookPen size={13} className="mr-1 inline align-[-2px] text-ink-3" />{log.text.trim()}</p>}
+                  {hwCount > 0 && <p className="mt-0.5 text-sm font-medium text-brass">+ {hwCount} {hwCount === 1 ? 'Hausübung' : 'Hausübungen'} eingetragen</p>}
                 </div>
                 {current && <div className="absolute bottom-0 left-0 h-1 bg-brass" style={{ width: `${progress * 100}%` }} />}
-              </div>
+              </button>
             </li>
           )
         })}

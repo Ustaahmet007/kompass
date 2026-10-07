@@ -69,6 +69,12 @@ export async function buildSchoolContext(): Promise<string> {
     lines.push(`- ${s.short}: Schnitt ${formatAvg(avg)}, Tendenz ${projectedGrade(avg)} | ${list} | Gewichtung ${s.categories.map((c) => `${c.name} ${c.weight}%`).join(', ')}`)
   }
 
+  const logs = (await db.lessonLogs.where('date').between(addDays(today, -21), today, true, true).sortBy('date')).filter((l) => l.text.trim())
+  if (logs.length) {
+    lines.push('\nSTOFF DER LETZTEN 3 WOCHEN (was im Unterricht gemacht wurde):')
+    for (const l of logs) lines.push(`- ${l.date} ${subjects.find((s) => s.id === l.subjectId)?.short ?? '?'}: ${l.text.replace(/\s+/g, ' ').slice(0, 200)}`)
+  }
+
   lines.push('\nARBEITSSCHICHTEN (nächste 14 Tage, da hat der Nutzer keine Zeit):')
   for (const x of shifts) lines.push(`- ${DAY_NAMES[weekdayIndex(x.date)]} ${x.date}: ${x.start}-${x.end} ${x.label}`)
   if (!shifts.length) lines.push('- keine eingetragen')

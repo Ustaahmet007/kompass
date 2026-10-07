@@ -161,7 +161,7 @@ export function Empty({ children, action }: { children: ReactNode; action?: Reac
 }
 
 /** Bottom sheet on narrow screens, centred dialog on wide ones. */
-export function Sheet({ open, onClose, title, children, footer }: { open: boolean; onClose: () => void; title: string; children: ReactNode; footer?: ReactNode }) {
+export function Sheet({ open, onClose, title, children, footer }: { open: boolean; onClose: () => void; title: ReactNode; children: ReactNode; footer?: ReactNode }) {
   const ref = useRef<HTMLDivElement>(null)
   useEffect(() => {
     if (!open) return
@@ -179,7 +179,7 @@ export function Sheet({ open, onClose, title, children, footer }: { open: boolea
   // Rendered straight into <body>: a parent with a blur/transform (e.g. panels over a photo background)
   // would otherwise become the reference for `fixed` and push the sheet off-screen on iPad.
   return createPortal(
-    <div className="fixed inset-0 z-50 flex items-end justify-center sm:items-center sm:p-6" role="dialog" aria-modal="true" aria-label={title}>
+    <div className="fixed inset-0 z-50 flex items-end justify-center sm:items-center sm:p-6" role="dialog" aria-modal="true" aria-label={typeof title === 'string' ? title : undefined}>
       <div className="fade-in absolute inset-0 bg-black/40" onClick={onClose} />
       <div ref={ref} className="panel sheet-in safe-bottom relative flex max-h-[92dvh] w-full flex-col rounded-t-2xl bg-surface shadow-2xl sm:max-w-lg sm:rounded-2xl">
         <div className="flex items-center justify-between gap-2 border-b border-line py-2 pr-2 pl-5">

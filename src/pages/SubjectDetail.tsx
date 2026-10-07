@@ -166,6 +166,7 @@ export default function SubjectDetail() {
               <ul className="divide-y divide-line">{upcoming.map((e) => <ExamRow key={e.id} exam={e} today={today} onOpen={setExam} showSubject={false} />)}</ul>
             ) : <p className="px-4 pb-3 text-ink-3">Keine anstehend.</p>}
           </Panel>
+          <Stoffverlauf subjectId={subjectId} />
           <Panel title="Notenrechner">
             <Notenrechner subjects={subjects} grades={grades} fixedSubject={subject} />
           </Panel>
@@ -182,5 +183,30 @@ export default function SubjectDetail() {
       </Sheet>
       {confirm.element}
     </div>
+  )
+}
+
+/** What was covered in class, newest first (entered on Heute by tapping a lesson). */
+function Stoffverlauf({ subjectId }: { subjectId: number }) {
+  const logs = useLiveQuery(() => db.lessonLogs.where('subjectId').equals(subjectId).filter((l) => !!l.text.trim()).toArray(), [subjectId], [])
+  const [all, setAll] = useState(false)
+  const sorted = [...logs].sort((a, b) => b.date.localeCompare(a.date))
+  const shown = all ? sorted : sorted.slice(0, 6)
+  return (
+    <Panel title={<>Stoffverlauf <span className="font-normal text-ink-3">· {logs.length}</span></>}>
+      {shown.length ? (
+        <ol className="space-y-2.5 px-4 pb-3">
+          {shown.map((l) => (
+            <li key={l.id} className="flex gap-3">
+              <span className="w-16 shrink-0 text-sm text-ink-3 tabular">{formatDate(l.date, { day: 'numeric', month: 'numeric' })}</span>
+              <span className="min-w-0 flex-1 whitespace-pre-line">{l.text.trim()}</span>
+            </li>
+          ))}
+        </ol>
+      ) : (
+        <p className="px-4 pb-3 text-ink-3">Noch nichts notiert. Auf „Heute“ eine Stunde antippen und kurz aufschreiben, was ihr gemacht habt.</p>
+      )}
+      {sorted.length > 6 && <button type="button" onClick={() => setAll(!all)} className="block w-full border-t border-line px-4 py-3 text-left text-sm font-medium text-brass">{all ? 'Weniger' : `Alle ${sorted.length} anzeigen`}</button>}
+    </Panel>
   )
 }

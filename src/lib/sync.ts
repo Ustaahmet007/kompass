@@ -19,7 +19,7 @@ export const syncConfigured = !!(URL_ && ANON)
 export const supabase: SupabaseClient | null = syncConfigured ? createClient(URL_!, ANON!, { auth: { persistSession: true, autoRefreshToken: true } }) : null
 
 /** Tables that travel between devices. */
-export const SYNCED = ['subjects', 'periods', 'lessons', 'tasks', 'grades', 'exams', 'settings', 'notes', 'sessions', 'plans', 'chat', 'usage', 'images', 'shifts', 'files'] as const
+export const SYNCED = ['subjects', 'periods', 'lessons', 'tasks', 'grades', 'exams', 'settings', 'notes', 'sessions', 'plans', 'chat', 'usage', 'images', 'shifts', 'files', 'lessonLogs'] as const
 type SyncedTable = (typeof SYNCED)[number]
 /** Device-specific settings that stay on each device. */
 const LOCAL_SETTINGS = new Set(['apiKey', 'voice', 'timer', 'lastExport', 'seeded', 'elevenKey', 'elevenVoice', 'elevenModel', 'voiceEngine'])

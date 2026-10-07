@@ -172,6 +172,16 @@ export interface StoredFile {
   createdAt: number
 }
 
+/** What was done in one lesson on one day ("Stoff"). */
+export interface LessonLog {
+  id?: number
+  date: string // YYYY-MM-DD
+  subjectId: number
+  lessonId?: number | null
+  text: string
+  updatedAt: number
+}
+
 export interface Usage {
   month: string // YYYY-MM
   costUsd: number
@@ -196,6 +206,7 @@ export const db = new Dexie('kompass') as Dexie & {
   images: EntityTable<StoredImage, 'id'>
   shifts: EntityTable<Shift, 'id'>
   files: EntityTable<StoredFile, 'id'>
+  lessonLogs: EntityTable<LessonLog, 'id'>
 }
 
 db.version(1).stores({
@@ -223,6 +234,10 @@ db.version(3).stores({
 db.version(4).stores({
   shifts: '++id, date',
   files: '++id',
+})
+
+db.version(5).stores({
+  lessonLogs: '++id, date, subjectId',
 })
 
 export const DEFAULT_CATEGORIES: Category[] = [
