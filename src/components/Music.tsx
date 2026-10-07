@@ -86,7 +86,49 @@ export function embedUrl(url: string, visual = false) {
   return `https://w.soundcloud.com/player/?url=${encodeURIComponent(url)}&color=%23${color}&auto_play=false&hide_related=true&show_comments=false&show_user=true&show_reposts=false&show_teaser=false&visual=${visual}`
 }
 
-export const isSoundCloudUrl = (u: string) => /^https?:\/\/(www\.|m\.|on\.)?soundcloud\.com\/\S+/i.test(u.trim())
+const SC_LINK = /https?:\/\/(?:(?:www\.|m\.|on\.|api\.)?soundcloud\.com|soundcloud\.app\.goo\.gl)\/[^\s"'<>]+/i
+/** Finds the SoundCloud link in whatever was pasted ("Hör dir … auf #SoundCloud an https://on.soundcloud.com/…"). */
+export const findSoundCloudUrl = (text: string) => text.match(SC_LINK)?.[0].replace(/[).,!]+$/, '') ?? null
+export const isSoundCloudUrl = (u: string) => !!findSoundCloudUrl(u)
+
+/**
+ * Turns any SoundCloud link (short links from the app, mobile links, secret links) into the form
+ * the player understands, via SoundCloud's oEmbed service. Also gives us the real title.
+ */
+async function resolveSoundCloud(link: string): Promise<{ url: string; title?: string }> {
+  const api = `https://soundcloud.com/oembed?format=json&url=${encodeURIComponent(link)}`
+  const parse = (d: { html?: string; title?: string }) => {
+    const src = d.html?.match(/src="([^"]+)"/)?.[1]
+    const inner = src ? new URL(src.replace(/&amp;/g, '&')).searchParams.get('url') : null
+    return { url: inner || link, title: d.title }
+  }
+  try {
+    const r = await fetch(api)
+    if (r.status === 404 || r.status === 403) throw new Error('missing')
+    if (r.ok) return parse(await r.json())
+  } catch (e) {
+    if ((e as Error).message === 'missing') throw new Error('SoundCloud findet das nicht. Ist die Playlist privat? Dann den „Geheimer Link“ teilen oder sie öffentlich machen.')
+  }
+  // Fallback without CORS: JSONP.
+  try {
+    return parse(
+      await new Promise((resolve, reject) => {
+        const cb = `__sc${Date.now()}`
+        const s = document.createElement('script')
+        const w = window as unknown as Record<string, unknown>
+        const done = () => { delete w[cb]; s.remove() }
+        w[cb] = (d: { html?: string; title?: string }) => { done(); resolve(d) }
+        s.src = `https://soundcloud.com/oembed?format=js&callback=${cb}&url=${encodeURIComponent(link)}`
+        s.onerror = () => { done(); reject(new Error('x')) }
+        document.head.appendChild(s)
+        setTimeout(() => { done(); reject(new Error('x')) }, 8000)
+      }),
+    )
+  } catch {
+    // Last resort: hand the link to the player as it is.
+    return { url: link }
+  }
+}
 
 /** Mounted once in the app shell. */
 export function MusicHost() {
@@ -191,14 +233,28 @@ export function MusicPanel() {
   const save = (patch: Partial<MusicSettings>) => setSetting('music', { ...music, ...patch })
   const valid = isSoundCloudUrl(url)
 
-  const add = () => {
-    if (!valid) return
-    const clean = url.trim().split('?')[0]
-    const label = name.trim() || decodeURIComponent(clean.replace(/\/$/, '').split('/').pop() ?? 'Playlist').replace(/-/g, ' ')
-    save({ lists: [...music.lists.filter((l) => l.url !== clean), { name: label, url: clean }], current: clean })
-    setUrl('')
-    setName('')
-    setAdding(false)
+  const [busy, setBusy] = useState(false)
+  const [err, setErr] = useState('')
+  const add = async () => {
+    const found = findSoundCloudUrl(url)
+    if (!found) return
+    setBusy(true)
+    setErr('')
+    try {
+      // Secret-link tokens are part of the path; the query is only tracking.
+      const link = found.split('?')[0]
+      const resolved = await resolveSoundCloud(link)
+      const fallbackName = decodeURIComponent(link.replace(/\/$/, '').split('/').pop() ?? 'Playlist').replace(/-/g, ' ')
+      const label = name.trim() || resolved.title?.replace(/ by .*$/, '') || fallbackName
+      save({ lists: [...music.lists.filter((l) => l.url !== resolved.url), { name: label, url: resolved.url }], current: resolved.url })
+      setUrl('')
+      setName('')
+      setAdding(false)
+    } catch (e) {
+      setErr(e instanceof Error ? e.message : String(e))
+    } finally {
+      setBusy(false)
+    }
   }
   const remove = (u: string) => {
     const lists = music.lists.filter((l) => l.url !== u)
@@ -226,10 +282,11 @@ export function MusicPanel() {
           <p className="text-sm text-ink-2">In der SoundCloud-App bei einer Playlist, einem Track oder deinen Likes auf <b>Teilen → Link kopieren</b> und hier einfügen.</p>
           <Input value={url} onChange={(e) => setUrl(e.target.value)} placeholder="https://soundcloud.com/…" inputMode="url" aria-label="SoundCloud-Link" />
           <Input value={name} onChange={(e) => setName(e.target.value)} placeholder="Name (optional), z. B. Lo-Fi" aria-label="Name" />
-          {url && !valid && <p className="text-sm text-danger">Das sieht nicht nach einem SoundCloud-Link aus.</p>}
+          {url && !valid && <p className="text-sm text-danger">Da ist kein SoundCloud-Link drin.</p>}
+          {err && <p className="text-sm text-danger">{err}</p>}
           <div className="flex justify-end gap-2">
             {music.lists.length > 0 && <Button variant="ghost" onClick={() => setAdding(false)}>Abbrechen</Button>}
-            <Button variant="primary" onClick={add} disabled={!valid}>Hinzufügen</Button>
+            <Button variant="primary" onClick={add} disabled={!valid || busy}>{busy ? 'Suche …' : 'Hinzufügen'}</Button>
           </div>
         </div>
       )}
