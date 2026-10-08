@@ -163,9 +163,13 @@ export function Empty({ children, action }: { children: ReactNode; action?: Reac
 /** Bottom sheet on narrow screens, centred dialog on wide ones. */
 export function Sheet({ open, onClose, title, children, footer }: { open: boolean; onClose: () => void; title: ReactNode; children: ReactNode; footer?: ReactNode }) {
   const ref = useRef<HTMLDivElement>(null)
+  // Latest onClose without re-running the effect: callers pass a new function on every render,
+  // and re-running would pull focus back to the first field while typing in another one.
+  const closeRef = useRef(onClose)
+  closeRef.current = onClose
   useEffect(() => {
     if (!open) return
-    const onKey = (e: KeyboardEvent) => e.key === 'Escape' && onClose()
+    const onKey = (e: KeyboardEvent) => e.key === 'Escape' && closeRef.current()
     document.addEventListener('keydown', onKey)
     const prev = document.body.style.overflow
     document.body.style.overflow = 'hidden'
@@ -174,7 +178,7 @@ export function Sheet({ open, onClose, title, children, footer }: { open: boolea
       document.removeEventListener('keydown', onKey)
       document.body.style.overflow = prev
     }
-  }, [open, onClose])
+  }, [open])
   if (!open) return null
   // Rendered straight into <body>: a parent with a blur/transform (e.g. panels over a photo background)
   // would otherwise become the reference for `fixed` and push the sheet off-screen on iPad.
