@@ -64,14 +64,35 @@ async function recordUsage(model: ModelId, input: number, output: number) {
   })
 }
 
-export async function callClaude(opts: {
+type CallOpts = {
   system: string
   messages: ApiMessage[]
   tools?: Tool[]
   toolChoice?: { type: 'auto' } | { type: 'tool'; name: string }
   maxTokens?: number
   model?: ModelId
-}): Promise<ApiResponse> {
+}
+
+/**
+ * Calls Claude. A required tool ({type:'tool'}) is not forced through the API, because newer
+ * models reject forced tool_choice; instead the instruction goes into the prompt, and if the
+ * answer comes back without the tool call, Claude is asked once more.
+ */
+export async function callClaude(opts: CallOpts): Promise<ApiResponse> {
+  const forced = opts.toolChoice?.type === 'tool' ? opts.toolChoice.name : null
+  if (!forced) return rawCall(opts)
+  const system = `${opts.system}\n\nWICHTIG: Antworte, indem du das Werkzeug ${forced} aufrufst.`
+  const first = await rawCall({ ...opts, system, toolChoice: { type: 'auto' } })
+  if (first.content.some((b) => b.type === 'tool_use')) return first
+  return rawCall({
+    ...opts,
+    system,
+    toolChoice: { type: 'auto' },
+    messages: [...opts.messages, { role: 'assistant', content: first.content }, { role: 'user', content: `Ruf jetzt das Werkzeug ${forced} mit dem fertigen Ergebnis auf.` }],
+  })
+}
+
+async function rawCall(opts: CallOpts): Promise<ApiResponse> {
   const key = await getSetting<string>('apiKey', '')
   if (!key) throw new KiError('Kein API-Schlüssel eingetragen. Trag ihn unter Einstellungen → KI ein.')
   const { budget, spent } = await kiStatus()
