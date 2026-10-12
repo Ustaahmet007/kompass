@@ -1,9 +1,9 @@
 import { useEffect, useRef, useState } from 'react'
-import { Link, useNavigate, useParams } from 'react-router-dom'
+import { Link, useNavigate, useParams, useSearchParams } from 'react-router-dom'
 import { useLiveQuery } from 'dexie-react-hooks'
 import { ArrowLeft, Check, FileText, RefreshCw, Sparkles, Timer as TimerIcon, Trash2, X } from 'lucide-react'
 import { db, setSetting, getSetting, type Exam, type PlanItem, type StudyPlan } from '../db'
-import { daysBetween, formatDate, formatLong } from '../lib/date'
+import { addDays, daysBetween, formatDate, formatLong } from '../lib/date'
 import { useSubjects, useToday } from '../lib/hooks'
 import { KiError, fileToBase64 } from '../lib/claude'
 import { generatePlan, replan } from '../lib/planner'
@@ -41,6 +41,8 @@ function PlanList() {
         action={ki?.hasKey && <Link to="/lernziele/neu"><Button variant="primary"><Sparkles size={18} /> Neuer Lernplan</Button></Link>}
       />
       {ki && !ki.hasKey && <div className="mb-5"><KiSetupCard what="Der Lernplaner" /></div>}
+      <ExamsWithoutPlan plans={active} />
+      {active.length > 0 && <Lernkalender plans={active} />}
       {plans.length ? (
         <div className="space-y-5">
           {[{ label: 'Aktiv', list: active }, { label: 'Vorbei', list: past }].filter((g) => g.list.length).map((g) => (
@@ -87,6 +89,82 @@ function PlanList() {
   )
 }
 
+/** Upcoming tests that nobody planned for yet. */
+function ExamsWithoutPlan({ plans }: { plans: StudyPlan[] }) {
+  const today = useToday()
+  const { byId } = useSubjects()
+  const exams = useLiveQuery(() => db.exams.where('date').between(addDays(today, 1), addDays(today, 30), true, true).sortBy('date'), [today], [] as Exam[])
+  const open = exams.filter((e) => e.kind !== 'Abgabe' && !plans.some((p) => p.examId === e.id || (p.subjectId === e.subjectId && p.deadline === e.date)))
+  if (!open.length) return null
+  return (
+    <div className="mb-5 space-y-2">
+      {open.map((e) => (
+        <div key={e.id} className="flex flex-wrap items-center gap-3 rounded-xl border border-brass/40 bg-brass-soft px-4 py-3">
+          <SubjectTag subject={byId.get(e.subjectId)} />
+          <span className="min-w-0 flex-1">
+            <b>{e.kind} {byId.get(e.subjectId)?.name}</b> am {formatDate(e.date, { weekday: 'short', day: 'numeric', month: 'short' })} – noch kein Lernplan
+          </span>
+          <Link to={`/lernziele/neu?pruefung=${e.id}`}><Button variant="primary"><Sparkles size={16} /> Plan erstellen</Button></Link>
+        </div>
+      ))}
+    </div>
+  )
+}
+
+/** All active plans together: what to study on which day, across subjects. */
+function Lernkalender({ plans }: { plans: StudyPlan[] }) {
+  const today = useToday()
+  const { byId } = useSubjects()
+  const [days, setDays] = useState(7)
+  const exams = useLiveQuery(() => db.exams.where('date').between(today, addDays(today, 21), true, true).toArray(), [today], [] as Exam[])
+  const missed = plans.flatMap((p) => p.items.filter((i) => !i.done && i.date < today)).length
+  const range = Array.from({ length: days }, (_, i) => addDays(today, i))
+  const toggle = (p: StudyPlan, idx: number) => db.plans.update(p.id!, { items: p.items.map((it, j) => (j === idx ? { ...it, done: !it.done } : it)), updatedAt: Date.now() })
+  return (
+    <Panel
+      className="mb-5"
+      title={<>Lernkalender <span className="font-normal text-ink-3">· alle Fächer</span></>}
+      action={<Segmented value={days} onChange={setDays} options={[{ value: 7, label: '7 Tage' }, { value: 14, label: '14 Tage' }]} />}
+    >
+      {missed > 0 && <p className="mx-4 mb-2 rounded-lg bg-brass-soft px-3 py-2 text-sm">{missed} {missed === 1 ? 'Einheit ist' : 'Einheiten sind'} liegen geblieben – im jeweiligen Plan auf „Stoff ergänzen / neu planen“.</p>}
+      <ol className="divide-y divide-line">
+        {range.map((d) => {
+          const items = plans.flatMap((p) => p.items.map((it, idx) => ({ p, it, idx })).filter((x) => x.it.date === d))
+          const total = items.reduce((a, x) => a + x.it.minutes, 0)
+          const dayExams = exams.filter((e) => e.date === d)
+          if (!items.length && !dayExams.length) return null
+          return (
+            <li key={d} className="px-4 py-2.5">
+              <div className="mb-1 flex items-center gap-2">
+                <span className={cx('text-sm font-semibold', d === today ? 'text-brass' : 'text-ink-2')}>{d === today ? 'Heute' : formatDate(d, { weekday: 'long', day: 'numeric', month: 'short' })}</span>
+                {dayExams.map((e) => (
+                  <span key={e.id} className="rounded px-1.5 text-xs leading-5 font-bold text-white" style={{ background: byId.get(e.subjectId)?.color ?? 'var(--brass)' }}>
+                    {e.kind === 'Schularbeit' ? 'SA' : e.kind} {byId.get(e.subjectId)?.short}
+                  </span>
+                ))}
+                {total > 0 && <span className={cx('ml-auto text-sm tabular', total > 120 ? 'font-semibold text-danger' : 'text-ink-3')}>{total} min</span>}
+              </div>
+              <ul className="space-y-0.5">
+                {items.map(({ p, it, idx }) => (
+                  <li key={`${p.id}-${idx}`} className="flex items-center gap-2">
+                    <button type="button" onClick={() => toggle(p, idx)} aria-label={it.done ? 'Als offen markieren' : 'Als erledigt markieren'} className="-ml-2 flex size-10 shrink-0 items-center justify-center">
+                      <span className={cx('flex size-5 items-center justify-center rounded border-2', it.done ? 'border-ok bg-ok text-white' : 'border-ink-3')}>{it.done && <Check size={12} />}</span>
+                    </button>
+                    <SubjectTag subject={byId.get(p.subjectId ?? -1)} />
+                    <Link to={`/lernziele/${p.id}`} className={cx('min-w-0 flex-1 truncate', it.done && 'text-ink-3 line-through')}>{it.topic}</Link>
+                    <span className="shrink-0 text-sm text-ink-3 tabular">{it.minutes} min</span>
+                  </li>
+                ))}
+              </ul>
+            </li>
+          )
+        })}
+      </ol>
+      {range.every((d) => !plans.some((p) => p.items.some((i) => i.date === d)) && !exams.some((e) => e.date === d)) && <p className="px-4 pb-3 text-ink-3">In diesem Zeitraum ist nichts geplant.</p>}
+    </Panel>
+  )
+}
+
 function NewPlan() {
   const nav = useNavigate()
   const today = useToday()
@@ -117,6 +195,17 @@ function NewPlan() {
       if (!material.trim() && e.topic) setMaterial(e.topic)
     }
   }
+  // Coming from "Plan erstellen" next to a test: preselect it.
+  const [params] = useSearchParams()
+  const preset = params.get('pruefung')
+  const presetDone = useRef(false)
+  useEffect(() => {
+    if (preset && !presetDone.current && exams.some((e) => e.id === Number(preset))) {
+      presetDone.current = true
+      pickExam(preset)
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [preset, exams])
 
   const onFile = (f?: File) => {
     setError('')
@@ -243,6 +332,9 @@ function PlanDetail({ id }: { id: number }) {
   const ki = useKi()
   const [replanOpen, setReplanOpen] = useState(false)
   const [note, setNote] = useState('')
+  const [extra, setExtra] = useState('')
+  const [extraFile, setExtraFile] = useState<File | null>(null)
+  const extraRef = useRef<HTMLInputElement>(null)
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState('')
   const confirm = useConfirm()
@@ -261,9 +353,12 @@ function PlanDetail({ id }: { id: number }) {
     setBusy(true)
     setError('')
     try {
-      await replan(plan, note)
+      const pdf = extraFile ? { name: extraFile.name, base64: await fileToBase64(extraFile) } : undefined
+      await replan(plan, note, { material: extra, pdf })
       setReplanOpen(false)
       setNote('')
+      setExtra('')
+      setExtraFile(null)
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Etwas ist schiefgelaufen.')
     }
@@ -294,7 +389,7 @@ function PlanDetail({ id }: { id: number }) {
           </div>
         </div>
         <div className="flex items-center gap-1">
-          {ki?.hasKey && plan.deadline >= today && <Button onClick={() => setReplanOpen((v) => !v)}><RefreshCw size={18} /> Neu planen</Button>}
+          {ki?.hasKey && plan.deadline >= today && <Button onClick={() => setReplanOpen((v) => !v)}><RefreshCw size={18} /> Stoff ergänzen / neu planen</Button>}
           <IconButton label="Lernplan löschen" onClick={remove}><Trash2 size={19} /></IconButton>
         </div>
       </header>
@@ -309,7 +404,20 @@ function PlanDetail({ id }: { id: number }) {
       {replanOpen && (
         <Panel className="mb-5">
           <div className="space-y-3 p-4">
-            <Field label="Was hat sich geändert? (optional)">
+            <Field label="Stoff ergänzen (optional)">
+              <Textarea rows={3} value={extra} onChange={(e) => setExtra(e.target.value)} placeholder="z. B. Grenzwert von Reihen, Buch S. 40–46 kommt auch dazu" />
+            </Field>
+            <div className="flex flex-wrap items-center gap-2">
+              <Button variant="secondary" onClick={() => extraRef.current?.click()}><FileText size={18} /> {extraFile ? 'Anderes PDF' : 'PDF dazu'}</Button>
+              {extraFile && (
+                <span className="flex items-center gap-1 text-sm text-ink-2">
+                  {extraFile.name}
+                  <IconButton label="PDF entfernen" onClick={() => setExtraFile(null)}><X size={16} /></IconButton>
+                </span>
+              )}
+              <input ref={extraRef} type="file" accept="application/pdf" hidden onChange={(e) => { const f = e.target.files?.[0]; if (f && f.type === 'application/pdf' && f.size < 30 * 1024 * 1024) setExtraFile(f); e.target.value = '' }} />
+            </div>
+            <Field label="Was hat sich sonst geändert? (optional)">
               <Textarea rows={2} value={note} onChange={(e) => setNote(e.target.value)} placeholder="z. B. Donnerstag kann ich nicht, Kapitel 3 kann ich schon" />
             </Field>
             {error && <p className="text-danger" role="alert">{error}</p>}
@@ -317,7 +425,7 @@ function PlanDetail({ id }: { id: number }) {
               <Button variant="primary" onClick={doReplan} disabled={busy}>{busy ? <><RefreshCw size={18} className="animate-spin" /> Plant neu …</> : 'Neu planen'}</Button>
               <Button variant="ghost" onClick={() => setReplanOpen(false)}>Abbrechen</Button>
             </div>
-            <p className="text-sm text-ink-3">Erledigtes bleibt, der Rest wird ab heute neu verteilt. Kostet ca. 2–5 Cent.</p>
+            <p className="text-sm text-ink-3">Erledigtes bleibt, der Rest wird ab heute mit dem neuen Stoff neu verteilt. Das alte PDF muss nicht nochmal rein, Claude kennt die Themen aus dem Plan. Kostet ca. 2–5 Cent, mit PDF etwas mehr.</p>
           </div>
         </Panel>
       )}

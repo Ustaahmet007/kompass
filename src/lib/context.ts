@@ -4,7 +4,7 @@ import { lessonSpan, lessonsForDate } from './hooks'
 import { formatAvg, projectedGrade, weightedAverage } from './grades'
 
 /** A compact plain-text snapshot of the user's school data for the assistant and the planner. */
-export async function buildSchoolContext(): Promise<string> {
+export async function buildSchoolContext(opts: { excludePlanId?: number } = {}): Promise<string> {
   const today = todayISO()
   const shifts = await db.shifts.where('date').between(today, addDays(today, 14), true, true).sortBy('date')
   const [subjects, lessons, periods, tasks, exams, grades, plans] = await Promise.all([
@@ -79,10 +79,12 @@ export async function buildSchoolContext(): Promise<string> {
   for (const x of shifts) lines.push(`- ${DAY_NAMES[weekdayIndex(x.date)]} ${x.date}: ${x.start}-${x.end} ${x.label}`)
   if (!shifts.length) lines.push('- keine eingetragen')
 
-  const planItems = plans.flatMap((p) => p.items.filter((i) => !i.done && i.date >= today && i.date <= addDays(today, 6)).map((i) => ({ p, i })))
+  const planItems = plans
+    .filter((p) => p.id !== opts.excludePlanId)
+    .flatMap((p) => p.items.filter((i) => !i.done && i.date >= today && i.date <= addDays(today, 30)).map((i) => ({ p, i })))
   if (planItems.length) {
-    lines.push('\nLERNPLAN nächste 7 Tage:')
-    for (const { p, i } of planItems.sort((a, b) => a.i.date.localeCompare(b.i.date))) lines.push(`- ${i.date}: ${i.minutes} min ${i.topic} (${p.title})`)
+    lines.push('\nSCHON VERPLANTE LERNZEIT (andere Lernpläne, nächste 30 Tage):')
+    for (const { p, i } of planItems.sort((a, b) => a.i.date.localeCompare(b.i.date))) lines.push(`- ${i.date}: ${i.minutes} min ${name(p.subjectId)} – ${i.topic} (${p.title})`)
   }
   return lines.join('\n')
 }

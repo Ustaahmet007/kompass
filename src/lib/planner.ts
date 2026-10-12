@@ -37,7 +37,7 @@ Regeln:
 - Halte dich an die Minuten pro Tag und die Verfügbarkeit. An Tagen mit Arbeitsschicht nur wenig oder vor/nach der Schicht planen, je nach Länge. Tage mit langem Unterricht (bis 17 oder 18 Uhr) weniger oder gar nicht einplanen.
 - Lieber verteilt lernen als alles am Ende: neuer Stoff zuerst, dann Wiederholungen mit Abstand (verteiltes Lernen), und 1–3 Tage vor der Prüfung eine Probeprüfung unter Zeitdruck (kind "probe").
 - Aktiv lernen: Aufgaben rechnen, Code schreiben, Schaltungen selbst zeichnen, nicht nur lesen. Schreib das in "details" konkret hinein.
-- Berücksichtige andere Prüfungen und Abgaben in den Daten, damit sich nichts staut.
+- Berücksichtige andere Prüfungen und Abgaben in den Daten, damit sich nichts staut. Die schon verplante Lernzeit anderer Lernpläne zählt mit: an Tagen, die schon voll sind, weniger oder nichts einplanen, damit die Summe pro Tag realistisch bleibt.
 - Sprache: Deutsch, kurz und konkret.
 Rufe am Ende immer das Werkzeug save_plan auf.`
 
@@ -110,7 +110,7 @@ ${context}`
 }
 
 /** Re-plans the open part of an existing plan from today on, keeping finished items. */
-export async function replan(plan: StudyPlan, note: string) {
+export async function replan(plan: StudyPlan, note: string, extra: { material?: string; pdf?: { name: string; base64: string } } = {}) {
   const today = todayISO()
   const done = plan.items.filter((i) => i.done)
   const missed = plan.items.filter((i) => !i.done && i.date < today)
@@ -132,12 +132,15 @@ ${fmt(open)}
 
 STOFF:
 ${plan.material || 'siehe Themen oben'}
-
+${extra.material?.trim() || extra.pdf ? `\nNEU DAZUGEKOMMENER STOFF (muss jetzt mit eingeplant werden):\n${extra.material?.trim() || ''}${extra.pdf ? `\n(siehe angehängtes PDF „${extra.pdf.name}“)` : ''}\n` : ''}
 MEINE SCHULDATEN:
-${await buildSchoolContext()}`
+${await buildSchoolContext({ excludePlanId: plan.id })}`
+  const content: ContentBlock[] = []
+  if (extra.pdf) content.push({ type: 'document', source: { type: 'base64', media_type: 'application/pdf', data: extra.pdf.base64 } })
+  content.push({ type: 'text', text })
   const res = await callClaude({
     system: SYSTEM,
-    messages: [{ role: 'user', content: text }],
+    messages: [{ role: 'user', content }],
     tools: [PLAN_TOOL],
     toolChoice: { type: 'tool', name: 'save_plan' },
     maxTokens: 4000,
@@ -148,6 +151,8 @@ ${await buildSchoolContext()}`
   await db.plans.update(plan.id!, {
     items: [...done, ...items],
     tips: use.input.tips ? String(use.input.tips) : plan.tips,
+    ...(extra.material?.trim() ? { material: [plan.material, extra.material.trim()].filter(Boolean).join('\n+ ') } : {}),
+    ...(extra.pdf ? { materialFileName: [plan.materialFileName, extra.pdf.name].filter(Boolean).join(', ') } : {}),
     updatedAt: Date.now(),
   })
 }
