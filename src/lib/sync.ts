@@ -10,7 +10,7 @@
 import { createClient, type RealtimeChannel, type Session, type SupabaseClient } from '@supabase/supabase-js'
 import type { Table } from 'dexie'
 import { db } from '../db'
-import { blobToDataUrl, dataUrlToBlob } from './images'
+import { dataUrlToBlob } from './images'
 
 const URL_ = import.meta.env.VITE_SUPABASE_URL as string | undefined
 const ANON = import.meta.env.VITE_SUPABASE_ANON_KEY as string | undefined
@@ -113,19 +113,27 @@ export function onSyncState(l: (s: SyncState) => void) {
 // Attached files (PDFs) are too big for a record: the bytes go to Supabase Storage
 // (bucket "files", folder per user), the record only carries the name and size.
 async function toRemote(tbl: SyncedTable, row: Record<string, unknown>, userId: string) {
-  if (tbl === 'images' && row.blob instanceof Blob) return { ...row, blob: await blobToDataUrl(row.blob) }
-  if (tbl === 'files') {
-    if (row.blob instanceof Blob) {
-      const { error } = await supabase!.storage.from('files').upload(`${userId}/${row.id}`, row.blob, { upsert: true, contentType: String(row.type || 'application/octet-stream') })
-      if (error) throw new Error(`Datei-Upload: ${error.message}`)
-    }
+  // Pictures and files travel through Storage; the record only carries the metadata.
+  if ((tbl === 'images' || tbl === 'files') && row.blob instanceof Blob) {
+    const path = tbl === 'images' ? `${userId}/img-${row.id}` : `${userId}/${row.id}`
+    const { error } = await supabase!.storage.from('files').upload(path, row.blob, { upsert: true, contentType: row.blob.type || String(row.type || 'application/octet-stream') })
+    if (error) throw new Error(`Upload: ${error.message}`)
     const { blob: _blob, ...meta } = row
-    return meta
+    return { ...meta, inStorage: true }
   }
   return row
 }
 async function fromRemote(tbl: SyncedTable, data: Record<string, unknown>) {
-  if (tbl === 'images' && typeof data.blob === 'string') return { ...data, blob: await dataUrlToBlob(data.blob) }
+  if (tbl === 'images') {
+    if (typeof data.blob === 'string') return { ...data, blob: await dataUrlToBlob(data.blob) } // old format
+    const local = await db.images.get(Number(data.id))
+    // Same picture already here (framing changes only touch metadata): keep the bytes.
+    if (local?.blob && local.createdAt === data.createdAt) return { ...data, blob: local.blob }
+    const { data: auth } = await supabase!.auth.getSession()
+    const { data: blob } = await supabase!.storage.from('files').download(`${auth.session?.user.id}/img-${data.id}`)
+    // Not reachable right now: keep the metadata, the bytes are fetched later (repairImages).
+    return { ...data, blob: blob ?? null }
+  }
   if (tbl === 'files') {
     const local = await db.files.get(Number(data.id))
     return { ...data, blob: local?.blob ?? null }
@@ -151,26 +159,51 @@ export async function fetchFileBlob(id: number): Promise<Blob | null> {
 const parseId = (tbl: SyncedTable, id: string) => (STRING_KEYS.has(tbl) ? id : Number(id))
 
 // ---- push / pull --------------------------------------------------------------------------
+let lastPushError = ''
 async function push(userId: string) {
   const entries = Object.entries(dirty)
   if (!entries.length) return
-  // Small batches: pictures can be a few hundred KB each.
-  for (let i = 0; i < entries.length; i += 25) {
-    const batch = entries.slice(i, i + 25)
-    const rows = []
-    for (const [key, { op }] of batch) {
+  lastPushError = ''
+  const failed: string[] = []
+  // Small batches; a row that fails is skipped (and retried next time) instead of blocking everything after it.
+  for (let i = 0; i < entries.length; i += 20) {
+    const batch = entries.slice(i, i + 20)
+    const rows: { key: string; seq: number; row: Record<string, unknown> }[] = []
+    for (const [key, { op, seq: sq }] of batch) {
       const [tbl, id] = key.split('\u0001') as [SyncedTable, string]
-      if (!SYNCED.includes(tbl)) continue
-      const local = op === 'put' ? await db.table(tbl).get(parseId(tbl, id)) : undefined
-      if (!local && tbl === 'files') await supabase!.storage.from('files').remove([`${userId}/${id}`])
-      rows.push(local ? { user_id: userId, tbl, id, data: await toRemote(tbl, local, userId), deleted: false } : { user_id: userId, tbl, id, data: null, deleted: true })
+      if (!SYNCED.includes(tbl)) {
+        delete dirty[key]
+        continue
+      }
+      try {
+        const local = op === 'put' ? await db.table(tbl).get(parseId(tbl, id)) : undefined
+        if (!local && (tbl === 'files' || tbl === 'images')) await supabase!.storage.from('files').remove([tbl === 'images' ? `${userId}/img-${id}` : `${userId}/${id}`])
+        rows.push({ key, seq: sq, row: local ? { user_id: userId, tbl, id, data: await toRemote(tbl, local, userId), deleted: false } : { user_id: userId, tbl, id, data: null, deleted: true } })
+      } catch (e) {
+        failed.push(key)
+        lastPushError = e instanceof Error ? e.message : String(e)
+      }
     }
-    const { error } = await supabase!.from('records').upsert(rows, { onConflict: 'user_id,tbl,id' })
-    if (error) throw new Error(error.message)
+    if (!rows.length) continue
+    let { error } = await supabase!.from('records').upsert(rows.map((r) => r.row), { onConflict: 'user_id,tbl,id' })
+    let sent = rows
+    if (error) {
+      // Find the bad one: send them one by one.
+      sent = []
+      for (const r of rows) {
+        const res = await supabase!.from('records').upsert([r.row], { onConflict: 'user_id,tbl,id' })
+        if (res.error) {
+          failed.push(r.key)
+          lastPushError = res.error.message
+        } else sent.push(r)
+      }
+      error = null
+    }
     // Only clear entries that didn't change again while we were sending.
-    for (const [key, v] of batch) if (dirty[key]?.seq === v.seq) delete dirty[key]
+    for (const r of sent) if (dirty[r.key]?.seq === r.seq) delete dirty[r.key]
     saveDirty()
   }
+  if (failed.length) throw new Error(`${failed.length} ${failed.length === 1 ? 'Eintrag' : 'Einträge'} konnten nicht hochgeladen werden: ${lastPushError}`)
 }
 
 type RemoteRow = { tbl: SyncedTable; id: string; data: Record<string, unknown> | null; deleted: boolean; updated_at: string }
@@ -178,7 +211,17 @@ type RemoteRow = { tbl: SyncedTable; id: string; data: Record<string, unknown> |
 async function applyRemote(rows: RemoteRow[]) {
   const usable = rows.filter((r) => SYNCED.includes(r.tbl) && !dirty[k(r.tbl, r.id)] && !(r.tbl === 'settings' && LOCAL_SETTINGS.has(r.id)))
   if (!usable.length) return
-  const prepared = await Promise.all(usable.map(async (r) => ({ r, data: r.data && !r.deleted ? await fromRemote(r.tbl, r.data) : null })))
+  const prepared = (
+    await Promise.all(
+      usable.map(async (r) => {
+        try {
+          return { r, data: r.data && !r.deleted ? await fromRemote(r.tbl, r.data) : null }
+        } catch {
+          return null // skip this one, don't block the rest
+        }
+      }),
+    )
+  ).filter((x): x is NonNullable<typeof x> => !!x)
   await db.transaction('rw', SYNCED.map((t) => db.table(t)), async (tx) => {
     ;(tx as unknown as { __remote: boolean }).__remote = true
     for (const { r, data } of prepared) {
@@ -209,6 +252,19 @@ async function pull() {
   }
 }
 
+/** Pictures whose bytes could not be downloaded yet. */
+async function repairImages(userId: string) {
+  const missing = await db.images.filter((i) => !i.blob).toArray()
+  for (const img of missing) {
+    const { data: blob } = await supabase!.storage.from('files').download(`${userId}/img-${img.id}`)
+    if (!blob) continue
+    await db.transaction('rw', db.images, async (tx) => {
+      ;(tx as unknown as { __remote: boolean }).__remote = true
+      await db.images.update(img.id!, { blob })
+    })
+  }
+}
+
 let running = false
 let again = false
 export async function syncNow() {
@@ -224,8 +280,15 @@ export async function syncNow() {
   running = true
   setState({ status: 'syncing', email: session.user.email })
   try {
-    await push(session.user.id)
+    let pushError: unknown = null
+    try {
+      await push(session.user.id)
+    } catch (e) {
+      pushError = e
+    }
     await pull()
+    await repairImages(session.user.id)
+    if (pushError) throw pushError
     const now = Date.now()
     localStorage.setItem('kompass-sync-last', String(now))
     setState({ status: 'idle', lastSync: now, error: undefined })

@@ -46,6 +46,7 @@ export function SyncSettings() {
   const [busy, setBusy] = useState(false)
   const [msg, setMsg] = useState<{ ok: boolean; text: string } | null>(null)
   const [info, setInfo] = useState<{ remote: number; local: number } | null>(null)
+  const [armUpload, setArmUpload] = useState(false)
 
   useEffect(() => {
     if (session && !ready) firstSyncInfo().then(setInfo).catch((e) => setMsg({ ok: false, text: e.message }))
@@ -122,8 +123,12 @@ export function SyncSettings() {
                 <Download size={18} /> Cloud-Daten auf dieses Gerät holen
               </Button>
               <p className="-mt-1 text-sm text-ink-3">Für ein neues Gerät (z. B. den PC). Was hier gerade drin ist, wird ersetzt.</p>
-              <Button className="w-full" disabled={busy} onClick={() => run(async () => { await completeFirstSync('upload'); setReady(true) })}>
-                <Upload size={18} /> Dieses Gerät hochladen
+              <Button
+                className={cx('w-full', armUpload && 'border-danger text-danger')}
+                disabled={busy}
+                onClick={() => (armUpload ? run(async () => { await completeFirstSync('upload'); setReady(true) }) : setArmUpload(true))}
+              >
+                <Upload size={18} /> {armUpload ? 'Sicher? Cloud überschreiben' : 'Dieses Gerät hochladen'}
               </Button>
               <p className="-mt-1 text-sm text-ink-3">Die Daten von diesem Gerät ersetzen die Cloud und alle anderen Geräte.</p>
             </>

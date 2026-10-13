@@ -1,4 +1,5 @@
 import { MusicHost } from './components/Music'
+import { isIOS, isStandalone } from './lib/reminders'
 import { useEffect, useState, type ReactNode } from 'react'
 import { HashRouter, NavLink, Route, Routes, useLocation } from 'react-router-dom'
 import { BookOpen, CalendarDays, ClipboardList, Compass, Flag, GraduationCap, LayoutGrid, MoreHorizontal, NotebookPen, Palette, Settings, Sparkles, Sun, Target, Timer as TimerIcon } from 'lucide-react'
@@ -172,7 +173,7 @@ function Shell() {
           </div>
         </aside>
         <main className="safe-top min-w-0 flex-1">
-          <div className="mx-auto max-w-6xl px-6 py-8 lg:px-10">{routes}</div>
+          <div className="mx-auto max-w-6xl px-6 py-8 lg:px-10"><SafariHint />{routes}</div>
         </main>
         {fab}
         <MusicHost />
@@ -184,7 +185,7 @@ function Shell() {
   return (
     <div className="min-h-dvh">
       <BackgroundImage design={design} />
-      <main className="safe-top"><div className="px-4 pt-6 pb-28 sm:px-6">{routes}</div></main>
+      <main className="safe-top"><div className="px-4 pt-6 pb-28 sm:px-6"><SafariHint />{routes}</div></main>
       {fab}
       <MusicHost />
       <nav className="safe-bottom fixed inset-x-0 bottom-0 z-40 border-t border-line bg-surface/95 backdrop-blur">
@@ -244,5 +245,25 @@ function SyncDot() {
       <span className={cx('size-2 rounded-full', s.status === 'error' ? 'bg-danger' : s.status === 'offline' ? 'bg-ink-3' : s.status === 'syncing' ? 'animate-pulse bg-brass' : 'bg-ok')} />
       {text}
     </NavLink>
+  )
+}
+
+/** iPad: Safari and the home-screen app keep separate data. Say so when opened in Safari. */
+function SafariHint() {
+  const [hidden, setHidden] = useState(() => {
+    try {
+      return localStorage.getItem('kompass-safari-hint') === '1'
+    } catch {
+      return false
+    }
+  })
+  if (hidden || !isIOS() || isStandalone()) return null
+  return (
+    <div className="mb-5 flex items-start gap-3 rounded-xl border border-brass/40 bg-brass-soft px-4 py-3 text-sm">
+      <span className="min-w-0 flex-1">
+        <b>Du bist in Safari.</b> Safari und die Kompass-App am Home-Bildschirm haben <b>getrennte Daten</b>. Öffne Kompass immer über das Icon am Home-Bildschirm. Hier nicht „Hochladen“ tippen.
+      </span>
+      <button type="button" className="font-semibold text-brass" onClick={() => { try { localStorage.setItem('kompass-safari-hint', '1') } catch { /* ignore */ } setHidden(true) }}>OK</button>
+    </div>
   )
 }
